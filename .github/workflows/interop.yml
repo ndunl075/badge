@@ -1,0 +1,59 @@
+name: Interop drift
+
+# The Web Bot Auth drafts move, and so does the reference implementation that
+# tracks them — it was published four days before this project started, and the
+# directory draft has already been renamed once.
+#
+# CI pins web-bot-auth so builds are reproducible. This job deliberately does
+# not: it runs the interop suite against whatever the reference implementation
+# is today. A failure here is the signal that the ecosystem moved, which is
+# something to find out from a scheduled job rather than from a user.
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  latest-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+
+      - name: Report the pinned and latest versions
+        run: |
+          pinned=$(node -p "require('./packages/interop/package.json').devDependencies['web-bot-auth']")
+          latest=$(npm view web-bot-auth version)
+          echo "pinned: $pinned"
+          echo "latest: $latest"
+          {
+            echo "| | version |"
+            echo "|---|---|"
+            echo "| pinned | \`$pinned\` |"
+            echo "| latest | \`$latest\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run interop against the latest reference implementation
+        run: |
+          pnpm --filter @badge/interop add -D web-bot-auth@latest
+          pnpm vitest run packages/interop
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          {
+            echo "### Interop against the latest reference implementation failed"
+            echo
+            echo "The pinned version still passes in the main CI job, so this is"
+            echo "not a regression in Badge — it means the reference implementation"
+            echo "or the drafts it tracks have moved."
+            echo
+            echo "A draft revision is a **new profile** in \`packages/core/src/profile.ts\`,"
+            echo "not an edit to the existing one. See ARCHITECTURE.md §18."
+          } >> "$GITHUB_STEP_SUMMARY"

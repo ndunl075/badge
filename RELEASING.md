@@ -29,6 +29,18 @@ git push origin main --tags
 The tag runs `.github/workflows/release.yml`, which re-runs the full check before publishing
 anything. Nothing is published from a laptop.
 
+Without credentials the publish step is **skipped, not failed**: the run stays green, the job
+summary says what is missing, and the tag is left in place so the release can be completed once the
+secret or trusted publishing is configured. That way a first tag cut before the npm side is ready
+does not look like a broken build.
+
+## Keeping up with the drafts
+
+`.github/workflows/interop.yml` runs weekly against whatever the Cloudflare reference implementation
+is _today_, rather than the pinned version the main CI uses. A failure there means the ecosystem
+moved, not that Badge regressed — and it is far better to learn that from a scheduled job than from
+a user.
+
 ## Versioning
 
 Badge is pre-1.0 and the API will change. Until 1.0:
