@@ -275,6 +275,14 @@ When enabled, Badge requires a `nonce` and needs an atomic check-and-set `NonceS
 enforcement boundary — a per-process store is theatre behind more than one replica. Retention is
 bounded by `maxWindowSec`, and store failure is `unverifiable`, never `untrusted`.
 
+The nonce must also be long enough to be worth storing. A short one is not merely weak: an attacker
+can enumerate the space and pre-seed the store, so a legitimate signer's own requests come back as
+`replay_detected` — replay protection turned into a denial of service against the party it protects.
+`minNonceBytes` defaults to 16, low enough to interoperate with a signer using something shorter than
+the reference implementation's 64 bytes and high enough that the space cannot be swept. Set it to 64
+to match the reference exactly. When replay protection is off the nonce is unread, and no shape is
+imposed on it.
+
 ## 9. Directory client — the dangerous part
 
 `Signature-Agent` is attacker-controlled and Badge fetches a URL derived from it. This is the

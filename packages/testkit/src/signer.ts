@@ -19,6 +19,19 @@ export interface SigningKey {
   readonly keyid: string
 }
 
+/**
+ * A nonce of the shape the reference implementation generates: 64 random bytes,
+ * unpadded base64url.
+ *
+ * Badge accepts shorter ones by default, but its own signer should emit what
+ * the ecosystem expects.
+ */
+export function generateNonce(bytes = 64): string {
+  const random = new Uint8Array(bytes)
+  crypto.getRandomValues(random)
+  return Buffer.from(random).toString('base64url')
+}
+
 export async function generateSigningKey(overrides: Partial<Jwk> = {}): Promise<SigningKey> {
   const pair = (await crypto.subtle.generateKey({ name: 'Ed25519' }, true, [
     'sign',
@@ -61,7 +74,7 @@ export interface SignRequestOptions {
   readonly tag?: string | null
   readonly alg?: string | null
   readonly keyid?: string | null
-  readonly nonce?: string
+  readonly nonce?: string | true
   /** Corrupt the signature after signing, to exercise `signature_invalid`. */
   readonly tamperSignature?: boolean
 }
@@ -115,7 +128,10 @@ export async function signRequest(options: SignRequestOptions): Promise<SignedRe
   if (alg !== null) params.set('alg', sf.string(alg))
   const tag = options.tag === undefined ? 'web-bot-auth' : options.tag
   if (tag !== null) params.set('tag', sf.string(tag))
-  if (options.nonce !== undefined) params.set('nonce', sf.string(options.nonce))
+  // `true` means "a realistic one"; a string is used verbatim so tests can send
+  // a deliberately bad nonce.
+  if (options.nonce === true) params.set('nonce', sf.string(generateNonce()))
+  else if (typeof options.nonce === 'string') params.set('nonce', sf.string(options.nonce))
 
   const signatureParamsSource = serializeInnerList(sf.innerList(components, params))
 

@@ -10,6 +10,16 @@ const { parseDictionary, parseItem } = sfv
  * parser, rebuild the base, and verify with raw WebCrypto. If this passes, a
  * later verifier failure is the verifier's fault and not the fixture's.
  */
+describe('generateNonce', () => {
+  it('produces the 64 bytes the reference implementation expects', async () => {
+    const { generateNonce } = await import('./signer.js')
+    const nonce = generateNonce()
+    expect(Buffer.from(nonce, 'base64url')).toHaveLength(64)
+    expect(nonce).toMatch(/^[A-Za-z0-9_-]+$/)
+    expect(generateNonce()).not.toBe(nonce)
+  })
+})
+
 describe('signRequest', () => {
   it('produces a signature that verifies after a full parse round trip', async () => {
     const key = await generateSigningKey()

@@ -436,7 +436,7 @@ describe('replay protection', () => {
   })
 
   it('is off by default, so a captured signature replays until it expires', async () => {
-    const signed = await sign({ nonce: 'abc' })
+    const signed = await sign({ nonce: true })
     const verifier = defaultVerifier()
     expect((await verifier.verify(signed.request)).reason).toBe('ok')
     expect((await verifier.verify(signed.request)).reason).toBe('ok')
@@ -444,7 +444,7 @@ describe('replay protection', () => {
 
   it('rejects a second use of the same nonce when enabled', async () => {
     const verifier = verifierWith({ replay: store() }, { [ORIGIN]: [key.publicJwk] })
-    const signed = await sign({ nonce: 'abc' })
+    const signed = await sign({ nonce: true })
     expect((await verifier.verify(signed.request)).reason).toBe('ok')
     const second = await verifier.verify(signed.request)
     expect(second.reason).toBe('replay_detected')
@@ -456,6 +456,45 @@ describe('replay protection', () => {
     expect((await verifier.verify((await sign()).request)).reason).toBe('nonce_missing')
   })
 
+  // A short nonce is not merely weak. An attacker can enumerate the space and
+  // pre-seed the store, turning replay protection into a denial of service
+  // against the very signer it protects.
+  it.each(['abc', '', 'not base64!!', 'c2hvcnQ='])(
+    'rejects the unusable nonce %j',
+    async (nonce) => {
+      const verifier = verifierWith({ replay: store() }, { [ORIGIN]: [key.publicJwk] })
+      const verdict = await verifier.verify((await sign({ nonce })).request)
+      expect(verdict.reason).toBe('nonce_invalid')
+      expect(verdict.class).toBe('malformed')
+    },
+  )
+
+  it('accepts a nonce at the configured minimum', async () => {
+    const verifier = verifierWith(
+      { replay: store(), minNonceBytes: 8 },
+      { [ORIGIN]: [key.publicJwk] },
+    )
+    const eightBytes = Buffer.from(new Uint8Array(8).fill(7)).toString('base64url')
+    expect((await verifier.verify((await sign({ nonce: eightBytes })).request)).reason).toBe('ok')
+  })
+
+  it('can be tightened to the 64 bytes the reference implementation uses', async () => {
+    const verifier = verifierWith(
+      { replay: store(), minNonceBytes: 64 },
+      { [ORIGIN]: [key.publicJwk] },
+    )
+    const thirtyTwo = Buffer.from(new Uint8Array(32).fill(7)).toString('base64url')
+    expect((await verifier.verify((await sign({ nonce: thirtyTwo })).request)).reason).toBe(
+      'nonce_invalid',
+    )
+    expect((await verifier.verify((await sign({ nonce: true })).request)).reason).toBe('ok')
+  })
+
+  it('ignores an unusable nonce entirely when replay protection is off', async () => {
+    const verdict = await defaultVerifier().verify((await sign({ nonce: 'abc' })).request)
+    expect(verdict.reason).toBe('ok')
+  })
+
   // A Redis hiccup must not read as an attack.
   it('reports a store outage as unverifiable, not as a replay', async () => {
     const broken: NonceStore = {
@@ -464,7 +503,7 @@ describe('replay protection', () => {
       },
     }
     const verifier = verifierWith({ replay: broken }, { [ORIGIN]: [key.publicJwk] })
-    const verdict = await verifier.verify((await sign({ nonce: 'abc' })).request)
+    const verdict = await verifier.verify((await sign({ nonce: true })).request)
     expect(verdict.reason).toBe('nonce_store_unavailable')
     expect(verdict.class).toBe('unverifiable')
   })
