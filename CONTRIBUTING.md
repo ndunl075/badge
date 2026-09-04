@@ -7,8 +7,15 @@ and where the code and that document disagree, one of them is a bug — say whic
 
 ```bash
 pnpm install
-pnpm run check   # format check + build + test
+pnpm run check   # prettier, TypeScript build and tests, plus gofmt, go vet and go test
 ```
+
+One command covers both halves of the repository on purpose. When the Go sidecar was added it had
+its own CI job and `pnpm run check` covered only the TypeScript, so a commit that ran `gofmt` but
+not prettier passed the local gate and turned `main` red. If you add a language, add it to `check`.
+
+The Go toolchain is optional: `check` skips the sidecar loudly when Go is absent, and CI runs it
+regardless.
 
 ## Things that are not up for debate lightly
 
