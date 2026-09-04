@@ -306,8 +306,11 @@ origins in flight. Negative caching of failures. Per-origin circuit breaker that
 zero attacker-driven egress at all.
 
 **Caching.** Two tiers: in-process LRU, plus an optional shared `Cache` (Redis, KV) so a fleet
-warms once. `Cache-Control` from the directory response is honoured within configured floor and
-ceiling. **Stale-while-revalidate is the default**: an expired-but-present directory is served while
+warms once. `Cache-Control` from the directory response is advisory, and always clamped into a configured floor
+and ceiling. The floor is the important half: without it an origin could send `max-age=0` or
+`no-store` and make Badge fetch its directory on every single request — an amplification hazard
+pointed at the verifier by someone else's configuration. `no-store` therefore gets the shortest
+lifetime Badge will use rather than the default one, and no further. **Stale-while-revalidate is the default**: an expired-but-present directory is served while
 a refresh runs in the background, because the alternative is a synchronous fetch on a live request
 path. The verdict's `timing.cache` records which tier answered.
 
