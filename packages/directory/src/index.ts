@@ -1,3 +1,4 @@
+export { memoryCache, type DirectoryCache, type DirectoryEntry } from './cache.js'
 export { isPublicAddress, parseIPv4, parseIPv6 } from './address.js'
 export {
   HttpClientError,
@@ -10,3 +11,4 @@ export {
   type HttpResponse,
   type NodeHttpClientOptions,
 } from './http.js'
+export { createDirectoryResolver, type DirectoryResolverOptions } from './resolver.js'
