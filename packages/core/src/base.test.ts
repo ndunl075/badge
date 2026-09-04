@@ -5,7 +5,7 @@ import { parseDictionary, parseItem } from './sfv/parse.js'
 import type { Item } from './sfv/types.js'
 
 const request = createRequest({
-  method: 'get',
+  method: 'GET',
   scheme: 'https',
   authority: 'Example.COM',
   path: '/docs/intro',
@@ -283,6 +283,18 @@ describe('buildSignatureBase', () => {
       expect(base.split('\n')[0]).toBe(`${id}: ${expected}`)
     })
 
+    // RFC 9421 §2.2.1 takes the method as-is and notes it is case-sensitive.
+    // Uppercasing would disagree with a correct signer on a non-standard
+    // method, and would let one signature cover two methods differing in case.
+    it('preserves a non-standard method exactly', () => {
+      const base = buildSignatureBase({
+        request: createRequest({ method: 'foo', scheme: 'https', authority: 'e.com', path: '/' }),
+        components: components('"@method"'),
+        signatureParamsSource: '()',
+      })
+      expect(base.split('\n')[0]).toBe('"@method": foo')
+    })
+
     it('lowercases the authority and drops the default port', () => {
       const value = (authority: string, scheme: 'http' | 'https'): string => {
         const base = buildSignatureBase({
@@ -304,6 +316,30 @@ describe('buildSignatureBase', () => {
         signatureParamsSource: '()',
       })
       expect(base.split('\n')[0]).toBe('"@query": ?')
+    })
+
+    it('reports a malformed percent-escape rather than leaking a URIError', () => {
+      const request = createRequest({
+        method: 'GET',
+        scheme: 'https',
+        authority: 'e.com',
+        path: '/',
+        query: 'a=%zz',
+      })
+      try {
+        buildSignatureBase({
+          request,
+          components: components('"@query-param";name="a"'),
+          signatureParamsSource: '()',
+        })
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        // A raw URIError escapes as internal_error, which the reason table
+        // reserves for Badge's own failures — so any caller could manufacture
+        // a Badge-fault verdict.
+        expect(err).toBeInstanceOf(SignatureBaseError)
+        expect((err as SignatureBaseError).reason).toBe('covered_component_malformed')
+      }
     })
 
     it('percent-decodes a query parameter', () => {

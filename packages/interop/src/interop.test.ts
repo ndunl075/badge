@@ -141,6 +141,34 @@ describe('the reference signs, Badge verifies', () => {
     expect(await badgeVerifier().verify(fromFetchRequest(signed))).toMatchObject({ reason: 'ok' })
   })
 
+  /**
+   * Settles a spec question Badge had wrong: it uppercased `@method`, while RFC
+   * 9421 §2.2.1 takes it as-is and calls method names case-sensitive. The
+   * reference signs `foo` as `foo`, so Badge's uppercased base disagreed and a
+   * correctly signed request came back `signature_invalid`.
+   */
+  it('agrees on the case of a non-standard method', async () => {
+    const url = `https://${AUTHORITY}/docs/intro`
+    const request = new Request(url, {
+      method: 'foo',
+      headers: { 'signature-agent': `"${AGENT_ORIGIN}"` },
+    })
+    const fields = await referenceSign(request, {
+      signer: referenceSigner(key.privateKey as unknown as webcrypto.CryptoKey, keyid),
+      created,
+      expires,
+      additionalComponents: [{ type: 'derived', name: '@method' }],
+    })
+    const headers = new Headers(request.headers)
+    headers.set('signature-input', fields.signatureInput)
+    headers.set('signature', fields.signature)
+    const signed = new Request(url, { method: 'foo', headers })
+
+    expect(signed.method).toBe('foo')
+    expect(fields.signatureInput).toContain('"@method"')
+    expect(await badgeVerifier().verify(fromFetchRequest(signed))).toMatchObject({ reason: 'ok' })
+  })
+
   it('rejects a reference-signed request whose key it does not hold', async () => {
     const other = await generateSigningKey()
     const signed = await signWithReference(`https://${AUTHORITY}/docs/intro`)

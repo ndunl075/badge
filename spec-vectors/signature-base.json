@@ -1,5 +1,5 @@
 {
-  "description": "RFC 9421 signature base construction. Expected bases are written by hand, not generated, so they are an independent statement of what the bytes must be. Any port of Badge must reproduce them exactly. LF line separators; no trailing newline.",
+  "description": "RFC 9421 signature base construction. Expected bases are written by hand, not generated, so they are an independent statement of what the bytes must be. Being hand-written does not make them right: the @method vector originally uppercased the method, and only a cross-check against a second implementation caught it. Any port of Badge must reproduce them exactly. LF line separators; no trailing newline.",
   "vectors": [
     {
       "name": "web-bot-auth minimum covered set",
@@ -9,7 +9,9 @@
         "authority": "example.com",
         "path": "/",
         "query": "",
-        "headers": { "signature-agent": "\"https://agent.example\"" }
+        "headers": {
+          "signature-agent": "\"https://agent.example\""
+        }
       },
       "components": ["\"@authority\"", "\"signature-agent\""],
       "signatureParams": "(\"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\"",
@@ -46,7 +48,7 @@
     {
       "name": "derived components",
       "request": {
-        "method": "post",
+        "method": "POST",
         "scheme": "https",
         "authority": "example.com",
         "path": "/checkout/pay",
@@ -101,7 +103,9 @@
         "authority": "example.com",
         "path": "/",
         "query": "",
-        "headers": { "x-thing": ["  one  ", "two"] }
+        "headers": {
+          "x-thing": ["  one  ", "two"]
+        }
       },
       "components": ["\"x-thing\""],
       "signatureParams": "(\"x-thing\")",
@@ -120,6 +124,20 @@
       "components": ["\"@authority\"", "\"@path\""],
       "signatureParams": "(\"@authority\" \"@path\")",
       "base": "\"@authority\": example.com\n\"@path\": /\n\"@signature-params\": (\"@authority\" \"@path\")"
+    },
+    {
+      "name": "a non-standard method is preserved exactly, not uppercased",
+      "request": {
+        "method": "foo",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/",
+        "query": "",
+        "headers": {}
+      },
+      "components": ["\"@method\""],
+      "signatureParams": "(\"@method\")",
+      "base": "\"@method\": foo\n\"@signature-params\": (\"@method\")"
     }
   ]
 }

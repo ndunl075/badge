@@ -70,6 +70,14 @@ export const REASONS = {
    * that code goes looking for an absent header, and this one was present.
    */
   covered_field_not_structured: { status: 'claimed', class: 'malformed' },
+  /**
+   * A covered component was sent, but its value cannot be derived at all — a
+   * malformed percent-escape in a covered query parameter, for instance.
+   *
+   * Distinct from `covered_field_not_structured`, which is narrower: there the
+   * value is recoverable but is not the structured type the parameters claim.
+   */
+  covered_component_malformed: { status: 'claimed', class: 'malformed' },
 
   // -- expired: a real claim, outside its window ----------------------------
   created_in_future: { status: 'claimed', class: 'expired' },
