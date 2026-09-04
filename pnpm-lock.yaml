@@ -37,6 +37,22 @@ importers:
         specifier: workspace:*
         version: link:../testkit
 
+  packages/middleware:
+    dependencies:
+      '@badge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@badge/directory':
+        specifier: workspace:*
+        version: link:../directory
+      '@badge/policy':
+        specifier: workspace:*
+        version: link:../policy
+    devDependencies:
+      '@badge/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+
   packages/policy:
     dependencies:
       '@badge/core':
