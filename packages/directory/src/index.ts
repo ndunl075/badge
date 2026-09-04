@@ -12,3 +12,10 @@ export {
   type NodeHttpClientOptions,
 } from './http.js'
 export { createDirectoryResolver, type DirectoryResolverOptions } from './resolver.js'
+export {
+  DirectoryPublishError,
+  buildDirectory,
+  rotationWarnings,
+  type BuildDirectoryOptions,
+  type DirectoryDocument,
+} from './serve.js'
