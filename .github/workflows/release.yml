@@ -36,7 +36,31 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
+
+      # Publishing needs credentials this repository may not have yet. Say so
+      # plainly rather than failing on an opaque 401 halfway through, and leave
+      # the tag in place so a release can be completed once they are set up.
+      - id: credentials
+        run: |
+          if [ -n "${NPM_TOKEN}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Release skipped"
+              echo
+              echo "No \`NPM_TOKEN\` secret is configured, so nothing was published."
+              echo "Everything else in this run passed, and the tag is unchanged."
+              echo
+              echo "See RELEASING.md: add the secret, or configure npm trusted"
+              echo "publishing for this repository, then re-run this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       # --no-git-checks because the tag, not the working tree, is the gate.
-      - run: pnpm -r publish --access public --no-git-checks
+      - if: steps.credentials.outputs.available == 'true'
+        run: pnpm -r publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
