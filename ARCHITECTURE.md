@@ -425,14 +425,16 @@ packages/
   core/        NormalizedRequest, verifier, verdicts, reason codes, profiles
   policy/      policy schema, matcher, linter
   directory/   client (cache, SSRF guard, breaker) + server helper
+  middleware/  composes verifier + policy + sinks; decision records, metrics
   adapters/    node-http, express, fastify, hono
   testkit/     request signer, fake directory, fixed key vectors, clock
   cli/         badge verify | sign | policy lint | directory serve
 spec-vectors/  cross-implementation fixtures (JSON)
 ```
 
-`core` depends on nothing outside itself and the standard library. Adapters depend on `core`;
-`core` never depends on an adapter.
+`core` depends on nothing outside itself and the standard library. `middleware` is the only package
+that depends on `core`, `policy` and `directory` together, so adapters stay as thin as §11 claims —
+they build a request, call `inspect`, apply the result. `core` never depends on an adapter.
 
 ## 16. Testing
 
