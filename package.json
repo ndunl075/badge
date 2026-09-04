@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm run format:check && pnpm run build && pnpm run test"
+    "check": "pnpm run format:check && pnpm run build && pnpm run test",
+    "vectors:generate": "pnpm run build && node scripts/generate-vectors.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

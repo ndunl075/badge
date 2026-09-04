@@ -1,0 +1,255 @@
+{
+  "description": "End-to-end verifier vectors. The signing key is RFC 8037 Appendix A.1 and Ed25519 is deterministic, so these bytes are stable. Replay each request against a verifier holding the published key and expect the given verdict. Regenerate with scripts/generate-vectors.mjs.",
+  "profile": "wba-2026-03",
+  "now": 1735689600,
+  "signatureAgentOrigin": "https://agent.example",
+  "publishedKeys": [
+    {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+    }
+  ],
+  "unrelatedKey": {
+    "kty": "OKP",
+    "crv": "Ed25519",
+    "x": "hgyY0il_MGCjP0JzlnLWG1PPOt7-09PGcvMg3AILyhc"
+  },
+  "vectors": [
+    {
+      "name": "a valid web-bot-auth signature",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:jo2CDM9DFAq/KISM+qo36FUNz9wzSD8eU0v/1Z+PjjHfkn39mI7rcORlbuqfLJmm9PKbcqCPzSKCInroO1+ZDg==:"
+        }
+      },
+      "expect": {
+        "status": "verified",
+        "class": "ok",
+        "reason": "ok"
+      }
+    },
+    {
+      "name": "a tampered signature",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:cY2CDM9DFAq/KISM+qo36FUNz9wzSD8eU0v/1Z+PjjHfkn39mI7rcORlbuqfLJmm9PKbcqCPzSKCInroO1+ZDg==:"
+        }
+      },
+      "expect": {
+        "status": "claimed",
+        "class": "untrusted",
+        "reason": "signature_invalid"
+      }
+    },
+    {
+      "name": "an expired signature",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"@authority\" \"signature-agent\");created=1735689000;expires=1735689300;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:rBxBtokVKpbrGfnmIVW19Twl2mbJGKLIWwQDcRiK5s9AXqEPXpuVyyV1tu+jBjhkHQKP5BnfyFsKuV9csO6uCQ==:"
+        }
+      },
+      "expect": {
+        "status": "claimed",
+        "class": "expired",
+        "reason": "signature_expired"
+      }
+    },
+    {
+      "name": "a signature created in the future",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"@authority\" \"signature-agent\");created=1735690200;expires=1735690260;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:OFbb/4e/KWimzcLwPY/wYOKUcpWEEStBlsqh3DQ32UInChSg/ejM5kp9y0RYLA75Yk+ykXGuCa8Ya6IhTQx2AA==:"
+        }
+      },
+      "expect": {
+        "status": "claimed",
+        "class": "expired",
+        "reason": "created_in_future"
+      }
+    },
+    {
+      "name": "a validity window beyond the profile ceiling",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"@authority\" \"signature-agent\");created=1735689600;expires=1735779600;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:kdB/eY12n1zXtVtvMnUDX1CP4DT+rc919crmsm4Z/D2C/z7XJBgRsyzi06LfU26cEGYMi6yltF9+QSTYrWfLDQ==:"
+        }
+      },
+      "expect": {
+        "status": "claimed",
+        "class": "malformed",
+        "reason": "validity_window_too_long"
+      }
+    },
+    {
+      "name": "a signature tagged for something else",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"not-web-bot-auth\"",
+          "signature": "sig1=:4mkmXbKMV0il9dcS2cPvcHO/D5hiRAkui0pAlBXsCNeB7UxtyH5UjSUnDrkrr9A68fm7oUo7SMKWsP8d0JouCw==:"
+        }
+      },
+      "expect": {
+        "status": "unknown",
+        "class": "absent",
+        "reason": "no_web_bot_auth_tag"
+      }
+    },
+    {
+      "name": "no keyid",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;alg=\"ed25519\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:XTBRzCUkFYBqNlAo4D4wO9ZE0N+Q1pAhujOQsfQogZbW+4J1ogeBBJFpcUeR9kOIWGCHId3vk+EaVMN3YHLqAg==:"
+        }
+      },
+      "expect": {
+        "status": "claimed",
+        "class": "malformed",
+        "reason": "missing_keyid"
+      }
+    },
+    {
+      "name": "an unsupported algorithm",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"rsa-pss-sha512\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:G3leGHdtSrzDEswPs9LrLQEKWLvKoq+e+iGnJiqO51wZ+RvF7ZpLjE9/5Te+/3flBIMiVRZ5Acb+in9I2u+8Dw==:"
+        }
+      },
+      "expect": {
+        "status": "claimed",
+        "class": "malformed",
+        "reason": "unsupported_algorithm"
+      }
+    },
+    {
+      "name": "no Signature-Agent",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-input": "sig1=(\"@authority\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:Yh9rftz3Etxl+itoFTm3i/i56of7p9KUEenV4yJ+qyY3jLZ/SC21jmdjfQeR5eKvFlFnbdiSvYBqp5hNSsmlDw==:"
+        }
+      },
+      "expect": {
+        "status": "claimed",
+        "class": "malformed",
+        "reason": "signature_agent_missing"
+      }
+    },
+    {
+      "name": "Signature-Agent present but not covered",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"@authority\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:Yh9rftz3Etxl+itoFTm3i/i56of7p9KUEenV4yJ+qyY3jLZ/SC21jmdjfQeR5eKvFlFnbdiSvYBqp5hNSsmlDw==:"
+        }
+      },
+      "expect": {
+        "status": "claimed",
+        "class": "malformed",
+        "reason": "covered_components_insufficient"
+      }
+    },
+    {
+      "name": "@authority not covered",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {
+          "signature-agent": "\"https://agent.example\"",
+          "signature-input": "sig1=(\"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\"",
+          "signature": "sig1=:VClIb8l1eIwaNMaraENTU0RvUQEJkw5udYs4oTJ7ZRZmt224CdAkWzGW+e9L6Ufwg+yZ6S32SGf8DPAcIDbWCA==:"
+        }
+      },
+      "expect": {
+        "status": "claimed",
+        "class": "malformed",
+        "reason": "covered_components_insufficient"
+      }
+    },
+    {
+      "name": "a request carrying no Web Bot Auth fields",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "",
+        "headers": {}
+      },
+      "expect": {
+        "status": "unknown",
+        "class": "absent",
+        "reason": "no_signature_fields"
+      }
+    }
+  ]
+}
