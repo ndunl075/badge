@@ -446,6 +446,49 @@ describe('replay protection', () => {
     expect((await verifier.verify(signed.request)).reason).toBe('replay_detected')
   })
 
+  /**
+   * Reproduces the review finding: the nonce was recorded until `expires`, but
+   * a signature stays acceptable until `expires + clockSkewSec`, so a captured
+   * request became replayable again for the last few seconds of its own
+   * window — and the hole grew with any skew allowance an operator raised.
+   */
+  it('remembers a nonce for as long as the signature is still acceptable', async () => {
+    const clock = fixedClock(NOW)
+    const verifier = createVerifier({
+      keys: staticKeyResolver({ [ORIGIN]: [key.publicJwk] }),
+      clock,
+      clockSkewSec: 5,
+      replay: memoryNonceStore({ clock }),
+    })
+    const signed = await sign({ created: NOW, expires: NOW + 10, nonce: true })
+
+    expect((await verifier.verify(signed.request)).reason).toBe('ok')
+    clock.set(NOW + 5)
+    expect((await verifier.verify(signed.request)).reason).toBe('replay_detected')
+    // Still inside the acceptance window, since expiry allows now - skew <= expires.
+    clock.set(NOW + 13)
+    expect((await verifier.verify(signed.request)).reason).toBe('replay_detected')
+    // Past it: the signature now fails on its own expiry, not on the nonce.
+    clock.set(NOW + 16)
+    expect((await verifier.verify(signed.request)).reason).toBe('signature_expired')
+  })
+
+  it('does not retain a nonce past the age ceiling that would reject it anyway', async () => {
+    const clock = fixedClock(NOW)
+    const verifier = createVerifier({
+      keys: staticKeyResolver({ [ORIGIN]: [key.publicJwk] }),
+      clock,
+      clockSkewSec: 5,
+      maxAgeSec: 20,
+      replay: memoryNonceStore({ clock }),
+    })
+    const signed = await sign({ created: NOW, expires: NOW + 3600, nonce: true })
+    expect((await verifier.verify(signed.request)).reason).toBe('ok')
+    clock.set(NOW + 21)
+    // Rejected on age, so the store no longer needs to hold the nonce.
+    expect((await verifier.verify(signed.request)).reason).toBe('signature_too_old')
+  })
+
   it('reports a saturated store as unverifiable rather than as a replay', async () => {
     const verifier = verifierWith(
       { replay: memoryNonceStore({ clock: fixedClock(NOW), maxEntries: 1 }) },

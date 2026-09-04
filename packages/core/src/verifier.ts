@@ -225,7 +225,10 @@ export function createVerifier(options: VerifierOptions): Verifier {
           if (decodedNonceBytes(nonce) < minNonceBytes) return done('nonce_invalid')
           let fresh: boolean
           try {
-            fresh = await options.replay.checkAndRecord(nonce, expires ?? now + maxAgeSec)
+            fresh = await options.replay.checkAndRecord(
+              nonce,
+              replayRetainUntil(created, expires, clockSkewSec, maxAgeSec, now),
+            )
           } catch {
             // A store outage must never read as a replay: that would deny
             // legitimate traffic the moment Redis hiccups.
@@ -240,6 +243,31 @@ export function createVerifier(options: VerifierOptions): Verifier {
       }
     },
   }
+}
+
+/**
+ * The last instant this signature could still be accepted.
+ *
+ * A nonce must be remembered for exactly that long. Remembering it only until
+ * `expires` leaves the signature replayable for the final `clockSkewSec`
+ * seconds of its own acceptance window, because the expiry check allows
+ * `now - clockSkewSec <= expires` — a hole that grows with any skew allowance
+ * an operator raises.
+ *
+ * Acceptance needs both the expiry and the age check to hold, so the earlier of
+ * the two bounds is the real deadline, and retaining past it would only waste
+ * space in the store.
+ */
+function replayRetainUntil(
+  created: number | undefined,
+  expires: number | undefined,
+  clockSkewSec: number,
+  maxAgeSec: number,
+  now: number,
+): number {
+  const byExpiry = (expires ?? now) + clockSkewSec
+  if (created === undefined) return byExpiry
+  return Math.min(byExpiry, created + maxAgeSec)
 }
 
 interface Selection {
