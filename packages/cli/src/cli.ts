@@ -2,6 +2,7 @@ import { EXIT_OK, EXIT_USAGE, UsageError, type Io } from './io.js'
 import { directory } from './commands/directory.js'
 import { keygen } from './commands/keygen.js'
 import { policy } from './commands/policy.js'
+import { report } from './commands/report.js'
 import { verify } from './commands/verify.js'
 
 const HELP = `badge — Web Bot Auth tools
@@ -27,6 +28,10 @@ const HELP = `badge — Web Bot Auth tools
   badge policy example
       Print a worked example policy.
 
+  badge report [<decision-log.jsonl>] [--json] [--top <n>]
+      Summarise a decision log, and say what enforcing would change.
+      Reads stdin when no file is given.
+
 Exit codes: 0 success, 1 the thing being checked is wrong, 2 the command was used wrong.
 `
 
@@ -48,6 +53,8 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
         return await directory(rest, io)
       case 'policy':
         return await policy(rest, io)
+      case 'report':
+        return await report(rest, io)
       default:
         io.err(`unknown command: ${command}`)
         io.err(HELP)

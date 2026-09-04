@@ -444,7 +444,7 @@ packages/
   adapters/    node-http, express, fastify, hono
   testkit/     request signer, fake directory, fixed key vectors, clock
   interop/     two-way checks against the Cloudflare reference implementation
-  cli/         badge verify | sign | policy lint | directory serve
+  cli/         badge verify | keygen | directory | policy lint | report
 spec-vectors/  cross-implementation fixtures (JSON)
 ```
 
