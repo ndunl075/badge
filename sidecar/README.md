@@ -15,6 +15,9 @@ go test -race ./...
 go run ./cmd/badge-proxy -config badge.example.yaml
 ```
 
+From the repository root, `pnpm run check` runs these alongside the TypeScript checks, so one
+command gates the whole repository.
+
 Start with `dryRun: true`. The proxy then evaluates the whole policy, records
 what it _would_ have done in each decision record's `would_action`, and refuses
 nothing. Feed that log to `badge report` from the TypeScript CLI — the record
