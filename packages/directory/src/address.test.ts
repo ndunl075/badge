@@ -40,6 +40,26 @@ describe('isPublicAddress', () => {
     expect(isPublicAddress('169.254.169.254')).toBe(false)
   })
 
+  /**
+   * 6to4 and Teredo embed an IPv4 address, so an attacker publishes an AAAA
+   * record of 2002:a9fe:a9fe:: and reaches 169.254.169.254 on any host with a
+   * 6to4 path configured. Found by an adversarial review pass; these were
+   * missing from the original denylist.
+   */
+  it.each([
+    ['6to4 wrapping loopback', '2002:7f00:1::'],
+    ['6to4 wrapping cloud metadata', '2002:a9fe:a9fe::'],
+    ['6to4 relay anycast', '192.88.99.1'],
+    ['Teredo', '2001:0:4136:e378:8000:63bf:3fff:fdd2'],
+    ['ORCHIDv2', '2001:20::1'],
+    ['IPv6 benchmarking', '2001:2::1'],
+    ['discard-only', '100::1'],
+    ['newer documentation range', '3fff::1'],
+    ['segment routing', '5f00::1'],
+  ])('refuses %s', (_label, ip) => {
+    expect(isPublicAddress(ip)).toBe(false)
+  })
+
   // An IPv4-mapped or NAT64-embedded loopback is the classic way past a guard
   // that only inspects the textual form.
   it.each(['::ffff:127.0.0.1', '::ffff:169.254.169.254', '::127.0.0.1', '64:ff9b::127.0.0.1'])(
