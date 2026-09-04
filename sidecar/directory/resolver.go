@@ -348,6 +348,23 @@ func (r *Resolver) recordFailure(origin string) {
 	}
 }
 
+// Stats reports the size of the resolver's bounded state.
+//
+// Every one of these is keyed by the attacker-supplied Signature-Agent origin,
+// so an operator wants to see them on a dashboard, and a test wants to assert
+// they stay bounded under a flood of invented origins.
+type Stats struct {
+	CachedOrigins int
+	Breakers      int
+	InFlight      int
+}
+
+func (r *Resolver) Stats() Stats {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return Stats{CachedOrigins: len(r.cache), Breakers: len(r.breakers), InFlight: len(r.inFlight)}
+}
+
 func (r *Resolver) clearBreaker(origin string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -46,7 +46,7 @@ func TestGoSignedVectorsVerify(t *testing.T) {
 	}
 
 	verifier := NewVerifier(StaticKeys{doc.SignatureAgentOrigin: doc.PublishedKeys})
-	verifier.Clock = &FixedClock{Seconds: doc.Now}
+	verifier.Clock = NewFixedClock(doc.Now)
 
 	for _, vector := range doc.Vectors {
 		t.Run(vector.Name, func(t *testing.T) {

@@ -37,3 +37,41 @@ disagree, and the vectors are where that disagreement shows up as a test failure
 rather than as a production incident. The reason code tables in particular are
 duplicated, which is a real cost: `spec-vectors/verdicts.json` is what catches
 the drift.
+
+## Soak
+
+`go test ./...` includes two flood tests that assert the bounded structures stay
+bounded: every cache key, breaker key and in-flight slot is derived from the
+attacker-supplied `Signature-Agent`, so "it has an LRU" and "the LRU is actually
+reached on this path" are different claims. The breaker map was missed the first
+time round precisely because nobody checked.
+
+For a longer run against a live proxy:
+
+```bash
+go run ./cmd/soak -duration 60s -workers 32
+```
+
+It drives a realistic mix — mostly unsigned, some verified, some forged, and a
+stream of origins an attacker just invented — and reports throughput, latency
+percentiles, heap and goroutine counts, and the resolver's bounded state. A
+20-second run on a 4-core container:
+
+```
+start   heap   0.2 MiB   goroutines    3
+end     heap   2.3 MiB   goroutines   15
+
+145463 requests in 20s across 24 workers (7273 req/s)
+  HTTP 403: 14537
+  HTTP 200: 130926
+  latency p50 3.182ms  p95 6.709ms  p99 9.11ms
+
+resolver state after a flood of invented origins:
+  cached origins 1024 (bound 1024)
+  breakers       2247 (bound 4096)
+```
+
+The throughput figure is not a production number — the load generator and the
+proxy share four cores, and the upstream is in the same process. The numbers
+that matter are the flat heap and the cache sitting exactly on its bound rather
+than above it.

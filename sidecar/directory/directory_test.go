@@ -89,7 +89,7 @@ func testKeyid(t *testing.T) string {
 
 func TestResolverFetchesAndCaches(t *testing.T) {
 	http := &recorder{fn: func(string, int) (*Response, error) { return jwksResponse([]wba.JWK{testKey}, nil), nil }}
-	clock := &wba.FixedClock{Seconds: 1000}
+	clock := wba.NewFixedClock(1000)
 	r := New(Options{Fetcher: http, Clock: clock})
 	keyid := testKeyid(t)
 
@@ -114,12 +114,12 @@ func TestResolverServesStaleWhileRevalidating(t *testing.T) {
 	http := &recorder{fn: func(string, int) (*Response, error) {
 		return jwksResponse([]wba.JWK{testKey}, map[string]string{"cache-control": "max-age=60"}), nil
 	}}
-	clock := &wba.FixedClock{Seconds: 1000}
+	clock := wba.NewFixedClock(1000)
 	r := New(Options{Fetcher: http, Clock: clock})
 	keyid := testKeyid(t)
 
 	r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: keyid})
-	clock.Seconds += 61
+	clock.Advance(61)
 	got := r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: keyid})
 	if !got.OK || got.Cache != "stale" {
 		t.Fatalf("stale resolve = %+v", got)
@@ -143,7 +143,7 @@ func TestFailedRefreshKeepsGoodKeys(t *testing.T) {
 		}
 		return jwksResponse([]wba.JWK{testKey}, map[string]string{"cache-control": "max-age=60"}), nil
 	}}
-	clock := &wba.FixedClock{Seconds: 1000}
+	clock := wba.NewFixedClock(1000)
 	r := New(Options{Fetcher: http, Clock: clock})
 	keyid := testKeyid(t)
 
@@ -151,7 +151,7 @@ func TestFailedRefreshKeepsGoodKeys(t *testing.T) {
 	mu.Lock()
 	healthy = false
 	mu.Unlock()
-	clock.Seconds += 100
+	clock.Advance(100)
 
 	if got := r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: keyid}); !got.OK {
 		t.Fatalf("stale resolve should still serve keys, got %+v", got)
@@ -173,7 +173,7 @@ func TestResolverTransportFailureMapping(t *testing.T) {
 		http := &recorder{fn: func(string, int) (*Response, error) {
 			return nil, &ClientError{Message: "nope", Kind: kind}
 		}}
-		r := New(Options{Fetcher: http, Clock: &wba.FixedClock{Seconds: 1000}})
+		r := New(Options{Fetcher: http, Clock: wba.NewFixedClock(1000)})
 		got := r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: "x"})
 		if got.Reason != want {
 			t.Errorf("%s -> %q, want %q", kind, got.Reason, want)
@@ -185,7 +185,7 @@ func TestResolverNegativeCaching(t *testing.T) {
 	http := &recorder{fn: func(string, int) (*Response, error) {
 		return nil, &ClientError{Message: "down", Kind: FailureNetwork}
 	}}
-	clock := &wba.FixedClock{Seconds: 1000}
+	clock := wba.NewFixedClock(1000)
 	r := New(Options{Fetcher: http, Clock: clock})
 
 	r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: "x"})
@@ -206,12 +206,12 @@ func TestResolverBreakerOpensAndCloses(t *testing.T) {
 		}
 		return jwksResponse([]wba.JWK{testKey}, nil), nil
 	}}
-	clock := &wba.FixedClock{Seconds: 1000}
+	clock := wba.NewFixedClock(1000)
 	r := New(Options{Fetcher: http, Clock: clock, NegativeTTL: 1, BreakerThreshold: 2, BreakerReset: 30})
 
 	for i := 0; i < 2; i++ {
 		r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: "x"})
-		clock.Seconds += 2
+		clock.Advance(2)
 	}
 	before := http.count()
 	r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: "x"})
@@ -222,7 +222,7 @@ func TestResolverBreakerOpensAndCloses(t *testing.T) {
 	mu.Lock()
 	healthy = true
 	mu.Unlock()
-	clock.Seconds += 31
+	clock.Advance(31)
 	if got := r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: testKeyid(t)}); !got.OK {
 		t.Errorf("breaker did not close: %+v", got)
 	}
@@ -230,7 +230,7 @@ func TestResolverBreakerOpensAndCloses(t *testing.T) {
 
 func TestResolverAllowlist(t *testing.T) {
 	http := &recorder{fn: func(string, int) (*Response, error) { return jwksResponse([]wba.JWK{testKey}, nil), nil }}
-	r := New(Options{Fetcher: http, Clock: &wba.FixedClock{Seconds: 1000}, AllowedOrigins: []string{"https://known.example"}})
+	r := New(Options{Fetcher: http, Clock: wba.NewFixedClock(1000), AllowedOrigins: []string{"https://known.example"}})
 	got := r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: "x"})
 	if got.Reason != wba.ReasonSignatureAgentNotAllowed {
 		t.Errorf("reason = %q", got.Reason)
@@ -245,7 +245,7 @@ func TestResolverMediaType(t *testing.T) {
 
 	lenient := New(Options{
 		Fetcher: &recorder{fn: func(string, int) (*Response, error) { return jwksResponse([]wba.JWK{testKey}, plainJSON), nil }},
-		Clock:   &wba.FixedClock{Seconds: 1000},
+		Clock:   wba.NewFixedClock(1000),
 	})
 	if got := lenient.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: testKeyid(t)}); !got.OK {
 		t.Errorf("lenient mode should accept application/json: %+v", got)
@@ -253,7 +253,7 @@ func TestResolverMediaType(t *testing.T) {
 
 	strict := New(Options{
 		Fetcher:         &recorder{fn: func(string, int) (*Response, error) { return jwksResponse([]wba.JWK{testKey}, plainJSON), nil }},
-		Clock:           &wba.FixedClock{Seconds: 1000},
+		Clock:           wba.NewFixedClock(1000),
 		StrictMediaType: true,
 	})
 	if got := strict.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: testKeyid(t)}); got.Reason != wba.ReasonDirectoryMalformed {
@@ -270,7 +270,7 @@ func TestResolverMalformedBodies(t *testing.T) {
 			Fetcher: &recorder{fn: func(string, int) (*Response, error) {
 				return &Response{Status: 200, Headers: h, Body: body}, nil
 			}},
-			Clock: &wba.FixedClock{Seconds: 1000},
+			Clock: wba.NewFixedClock(1000),
 		})
 		got := r.Resolve(context.Background(), wba.KeyRequest{Origin: testOrigin, Keyid: "x"})
 		if got.Reason != wba.ReasonDirectoryMalformed {
@@ -285,7 +285,7 @@ func TestResolverSingleFlight(t *testing.T) {
 		<-release
 		return jwksResponse([]wba.JWK{testKey}, nil), nil
 	}}
-	r := New(Options{Fetcher: http, Clock: &wba.FixedClock{Seconds: 1000}})
+	r := New(Options{Fetcher: http, Clock: wba.NewFixedClock(1000)})
 	keyid := testKeyid(t)
 
 	var wg sync.WaitGroup
