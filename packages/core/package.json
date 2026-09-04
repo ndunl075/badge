@@ -1,0 +1,18 @@
+{
+  "name": "@badge/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Web Bot Auth verification core: verdicts, reason codes, signature verification.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false
+}

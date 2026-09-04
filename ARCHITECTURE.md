@@ -24,7 +24,7 @@ Badge never fails closed on its own network errors.
 
 Badge is **not**:
 
-- a bot *detector* — no fingerprinting, no heuristics, no behavioural scoring. Badge only reads
+- a bot _detector_ — no fingerprinting, no heuristics, no behavioural scoring. Badge only reads
   cryptographic claims the caller volunteered.
 - a WAF, a rate limiter, or a payments layer (HTTP 402 / RSL / crawler pricing are out of scope).
 - a reputation service. Badge does not ship a list of "good" agents (see §3).
@@ -35,42 +35,42 @@ Badge is **not**:
 **`verified` means: the caller controls a private key whose public half is published at the origin
 named in its `Signature-Agent` header.** That is all it means.
 
-It does *not* mean the caller is well-behaved, that it respects `robots.txt`, or that the origin it
+It does _not_ mean the caller is well-behaved, that it respects `robots.txt`, or that the origin it
 names is a company you have heard of. Anyone can stand up a directory and sign requests. Web Bot
-Auth is an *identity* layer, not a *trust* layer.
+Auth is an _identity_ layer, not a _trust_ layer.
 
 Consequences that shape the whole design:
 
 - The map from `signature-agent` origin → operator name is **operator-configured data**, not
   built-in knowledge. Badge ships no bundled allowlist in v0. A community-maintained, versioned map
   can ship later as a separate, optional package — never as a hidden default.
-- Policy therefore keys on *origins*, with human-readable operator labels as sugar over them.
+- Policy therefore keys on _origins_, with human-readable operator labels as sugar over them.
 
 ### Threat model
 
-| Attacker can | Badge response |
-| --- | --- |
-| Forge `User-Agent`, invent any header | Ignored; only the signature counts |
-| Point `Signature-Agent` at any URL, including internal ones | SSRF guard, §9 |
-| Replay a captured, still-valid signature | Bounded by `expires`; optional nonce store (§8.4) |
-| Flood requests naming thousands of distinct origins | Fetch caps, negative cache, circuit breakers (§9) |
-| Sign correctly and then behave badly | **Out of scope.** Badge tells you who it was |
-| Compromise a legitimate operator's signing key | **Out of scope.** Mitigated only by that operator's rotation |
+| Attacker can                                                | Badge response                                               |
+| ----------------------------------------------------------- | ------------------------------------------------------------ |
+| Forge `User-Agent`, invent any header                       | Ignored; only the signature counts                           |
+| Point `Signature-Agent` at any URL, including internal ones | SSRF guard, §9                                               |
+| Replay a captured, still-valid signature                    | Bounded by `expires`; optional nonce store (§8.4)            |
+| Flood requests naming thousands of distinct origins         | Fetch caps, negative cache, circuit breakers (§9)            |
+| Sign correctly and then behave badly                        | **Out of scope.** Badge tells you who it was                 |
+| Compromise a legitimate operator's signing key              | **Out of scope.** Mitigated only by that operator's rotation |
 
 ## 4. Standards baseline
 
 Badge implements, and invents nothing beyond:
 
-| Spec | Role |
-| --- | --- |
-| RFC 9421 | HTTP Message Signatures — signature base construction, verification |
-| RFC 9651 | Structured Field Values — parsing `Signature-Input`, `Signature`, `Signature-Agent` |
-| RFC 7638 | JWK Thumbprint — the `keyid` is the thumbprint of the JWK |
-| RFC 7517 / 7518 | JWK / JWKS — directory payload shape |
-| `draft-meunier-web-bot-auth-architecture` | Architecture and terminology |
-| `draft-meunier-webbotauth-httpsig-protocol` | Wire protocol: fields, tag, covered components |
-| `draft-meunier-webbotauth-httpsig-directory` (was `draft-meunier-http-message-signatures-directory`) | Key directory format and well-known URI |
-| `draft-meunier-webbotauth-registry` | Registry / Signature Agent card — tracked, not implemented in v0 |
+| Spec                                                                                                 | Role                                                                                |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| RFC 9421                                                                                             | HTTP Message Signatures — signature base construction, verification                 |
+| RFC 9651                                                                                             | Structured Field Values — parsing `Signature-Input`, `Signature`, `Signature-Agent` |
+| RFC 7638                                                                                             | JWK Thumbprint — the `keyid` is the thumbprint of the JWK                           |
+| RFC 7517 / 7518                                                                                      | JWK / JWKS — directory payload shape                                                |
+| `draft-meunier-web-bot-auth-architecture`                                                            | Architecture and terminology                                                        |
+| `draft-meunier-webbotauth-httpsig-protocol`                                                          | Wire protocol: fields, tag, covered components                                      |
+| `draft-meunier-webbotauth-httpsig-directory` (was `draft-meunier-http-message-signatures-directory`) | Key directory format and well-known URI                                             |
+| `draft-meunier-webbotauth-registry`                                                                  | Registry / Signature Agent card — tracked, not implemented in v0                    |
 
 **These drafts are not working-group adopted and they move — the directory draft has already been
 renamed once.** See §18 for how Badge absorbs that without breaking installs.
@@ -111,7 +111,7 @@ Five v0 deliverables map onto that picture:
 2. **Policy engine** — verdicts and origins to `allow` / `deny` / `log-only`, per route.
 3. **Adapters** — framework-agnostic core, thin per-framework shims.
 4. **Directory helper** — serve your own `/.well-known/http-message-signatures-directory`.
-5. **Observability** — the decision record, and dry-run mode. *(Provisional: see §19.)*
+5. **Observability** — the decision record, and dry-run mode. _(Provisional: see §19.)_
 
 ### Language
 
@@ -154,24 +154,24 @@ Steps 2–8 are skipped wholesale by step 1 for unsigned traffic. Only step 5 do
 interface NormalizedRequest {
   method: string
   scheme: 'http' | 'https'
-  authority: string                 // host[:port] — see the proxy trap below
-  path: string                      // raw, not percent-decoded
-  query: string                     // raw, without leading '?'
-  header(name: string): string | undefined  // as received, RFC 9421 field-value rules
+  authority: string // host[:port] — see the proxy trap below
+  path: string // raw, not percent-decoded
+  query: string // raw, without leading '?'
+  header(name: string): string | undefined // as received, RFC 9421 field-value rules
   rawHeaders?: ReadonlyArray<readonly [string, string]>
 }
 
 type Status = 'verified' | 'claimed' | 'unknown'
-type Class  = 'ok' | 'absent' | 'malformed' | 'expired' | 'untrusted' | 'unverifiable'
+type Class = 'ok' | 'absent' | 'malformed' | 'expired' | 'untrusted' | 'unverifiable'
 
 interface Verdict {
   status: Status
   class: Class
-  reason: ReasonCode                // closed enum, stable strings, §8.2
-  profile: string                   // e.g. 'wba-2026-03' — which draft revision judged this
-  signatureAgent?: string           // normalized https origin
+  reason: ReasonCode // closed enum, stable strings, §8.2
+  profile: string // e.g. 'wba-2026-03' — which draft revision judged this
+  signatureAgent?: string // normalized https origin
   keyid?: string
-  label?: string                    // which signature label was selected
+  label?: string // which signature label was selected
   created?: number
   expires?: number
   covered?: string[]
@@ -180,7 +180,7 @@ interface Verdict {
 
 interface Decision {
   action: 'allow' | 'deny' | 'log-only'
-  ruleId: string                    // which rule fired — never empty
+  ruleId: string // which rule fired — never empty
   verdict: Verdict
 }
 ```
@@ -191,7 +191,7 @@ interface Decision {
   no failure that surfaces as `null`. The reason enum is closed and versioned; it is a public API.
 - **`status` alone is never enough to act on.** See §8.1.
 
-**The proxy trap.** `@authority` is what the *client* addressed. If a load balancer rewrites `Host`,
+**The proxy trap.** `@authority` is what the _client_ addressed. If a load balancer rewrites `Host`,
 every signature fails and the failure looks cryptographic. Adapters therefore take
 `authority: 'host' | 'forwarded' | { fixed: string }` and Badge logs the resolved authority in the
 decision record so this is a five-second diagnosis instead of an afternoon.
@@ -213,47 +213,53 @@ Both land in `claimed`. Denying on the second takes a live site off the air duri
 So Badge carries an orthogonal `class` on every verdict, and **policy can match on `class`
 directly**. `status` is the headline; `class` is what you build rules on.
 
-| class | Meaning | Attributable to | Safe default |
-| --- | --- | --- | --- |
-| `ok` | Verified | — | allow |
-| `absent` | No Web Bot Auth fields at all | caller | log-only |
-| `malformed` | Fields present but unparseable or non-conformant | caller | log-only → deny |
-| `expired` | Outside the signature's validity window | caller | log-only → deny |
-| `untrusted` | Cryptographic or identity failure | caller (assume hostile) | deny |
-| `unverifiable` | Badge could not complete the check | **us** | **never deny by default** |
+| class          | Meaning                                          | Attributable to         | Safe default              |
+| -------------- | ------------------------------------------------ | ----------------------- | ------------------------- |
+| `ok`           | Verified                                         | —                       | allow                     |
+| `absent`       | No Web Bot Auth fields at all                    | caller                  | log-only                  |
+| `malformed`    | Fields present but unparseable or non-conformant | caller                  | log-only → deny           |
+| `expired`      | Outside the signature's validity window          | caller                  | log-only → deny           |
+| `untrusted`    | Cryptographic or identity failure                | caller (assume hostile) | deny                      |
+| `unverifiable` | Badge could not complete the check               | **us**                  | **never deny by default** |
 
 ### 8.2 Reason codes
 
-| Reason | status | class |
-| --- | --- | --- |
-| `no_signature_fields` | unknown | absent |
-| `signature_input_malformed`, `signature_malformed` | claimed | malformed |
-| `signature_agent_malformed` (not a quoted `https:` URI) | claimed | malformed |
-| `no_web_bot_auth_tag` | unknown | absent |
-| `covered_components_insufficient` | claimed | malformed |
-| `unsupported_algorithm` | claimed | malformed |
-| `missing_expires`, `validity_window_too_long` | claimed | malformed |
-| `created_in_future`, `signature_expired` | claimed | expired |
-| `key_not_found` (no JWK matches the thumbprint) | claimed | untrusted |
-| `key_not_yet_valid`, `key_expired` | claimed | untrusted |
-| `signature_invalid` | claimed | untrusted |
-| `replay_detected` | claimed | untrusted |
-| `signature_agent_not_allowed` (allowlist mode) | claimed | untrusted |
-| `directory_unreachable`, `directory_timeout` | claimed | unverifiable |
-| `directory_malformed`, `directory_too_large` | claimed | unverifiable |
-| `internal_error` | claimed | unverifiable |
+| Reason                                                           | status   | class        |
+| ---------------------------------------------------------------- | -------- | ------------ |
+| `ok`                                                             | verified | ok           |
+| `no_signature_fields`, `no_web_bot_auth_tag`                     | unknown  | absent       |
+| `signature_input_malformed`, `signature_malformed`               | claimed  | malformed    |
+| `signature_agent_malformed` (not a quoted `https:` URI)          | claimed  | malformed    |
+| `signature_agent_missing` (profile needs it to find a key)       | claimed  | malformed    |
+| `covered_components_insufficient`                                | claimed  | malformed    |
+| `unsupported_algorithm`, `missing_keyid`                         | claimed  | malformed    |
+| `missing_created`, `missing_expires`, `validity_window_too_long` | claimed  | malformed    |
+| `nonce_missing` (replay protection on, no nonce sent)            | claimed  | malformed    |
+| `created_in_future`, `signature_expired`, `signature_too_old`    | claimed  | expired      |
+| `key_not_found` (no JWK matches the thumbprint)                  | claimed  | untrusted    |
+| `key_not_yet_valid`, `key_expired`                               | claimed  | untrusted    |
+| `signature_invalid`                                              | claimed  | untrusted    |
+| `replay_detected`                                                | claimed  | untrusted    |
+| `signature_agent_not_allowed` (allowlist mode)                   | claimed  | untrusted    |
+| `directory_unreachable`, `directory_timeout`                     | claimed  | unverifiable |
+| `directory_malformed`, `directory_too_large`                     | claimed  | unverifiable |
+| `nonce_store_unavailable`                                        | claimed  | unverifiable |
+| `internal_error`                                                 | claimed  | unverifiable |
 
 `directory_malformed` is `unverifiable`, not `untrusted`: a broken directory is far more often an
 operator's deploy bug than an attack, and the safe reading of ambiguity is "we could not check".
 
+The table lives in code at `packages/core/src/reasons.ts` and is asserted by tests. Codes are added,
+never repurposed — a log line written a year ago must still mean what it meant then.
+
 ### 8.3 Clock handling
 
-| Knob | Default | Rule |
-| --- | --- | --- |
-| `clockSkewSec` | 5 | `created` may be this far in the future |
-| `maxAgeSec` | 300 | Reject if `now - created` exceeds it, regardless of `expires` |
-| `maxWindowSec` | 86400 | Reject if `expires - created` exceeds it (draft says ≤ 24h) |
-| `requireExpires` | true | A signature with no `expires` is a permanent bearer token |
+| Knob             | Default | Rule                                                          |
+| ---------------- | ------- | ------------------------------------------------------------- |
+| `clockSkewSec`   | 5       | `created` may be this far in the future                       |
+| `maxAgeSec`      | 300     | Reject if `now - created` exceeds it, regardless of `expires` |
+| `maxWindowSec`   | 86400   | Reject if `expires - created` exceeds it (draft says ≤ 24h)   |
+| `requireExpires` | true    | A signature with no `expires` is a permanent bearer token     |
 
 ### 8.4 Replay protection
 
@@ -302,13 +308,13 @@ Pure function: `(Verdict, RequestFacts, Policy) → Decision`. No I/O, no clock,
 
 ```yaml
 version: 1
-default: log-only              # required, and the template ships as log-only
+default: log-only # required, and the template ships as log-only
 
-operators:                     # human labels over origins — operator-authored, never bundled
-  openai:   ["https://openai.com", "https://chatgpt.com"]
-  internal: ["https://agents.corp.example"]
+operators: # human labels over origins — operator-authored, never bundled
+  openai: ['https://openai.com', 'https://chatgpt.com']
+  internal: ['https://agents.corp.example']
 
-rules:                         # ordered; first match wins
+rules: # ordered; first match wins
   - id: forgeries-are-hostile
     when: { class: untrusted }
     action: deny
@@ -319,11 +325,11 @@ rules:                         # ordered; first match wins
 
   - id: docs-open-to-known-agents
     when: { status: verified, operator: [openai, internal] }
-    routes: ["GET /docs/**", "GET /blog/**"]
+    routes: ['GET /docs/**', 'GET /blog/**']
     action: allow
 
   - id: no-agents-at-checkout
-    routes: ["POST /checkout/**"]
+    routes: ['POST /checkout/**']
     when: { status: [verified, claimed] }
     action: deny
 ```
@@ -337,7 +343,7 @@ Rules:
   deliberate, documented edit.
 - **Every decision names a rule.** The implicit default is reported as `ruleId: "default"`, never as
   a blank.
-- **Dry-run** evaluates the full policy and reports what *would* have happened while acting
+- **Dry-run** evaluates the full policy and reports what _would_ have happened while acting
   `log-only`. This is how an operator earns the confidence to enforce.
 - **Validator** (`badge policy lint`) catches unreachable rules, unknown operators, malformed globs,
   and any policy that would deny on `class: unverifiable` — that last one is a warning, not an
@@ -360,23 +366,35 @@ across callers; the deny path is marked no-store and the docs cover `Vary`.
 
 ## 12. Directory server helper
 
-For operators who also *sign* — outbound agents, and anyone testing Badge against itself.
+For operators who also _sign_ — outbound agents, and anyone testing Badge against itself.
 
 Serves `/.well-known/http-message-signatures-directory` from a set of Ed25519 public keys as JWKS,
 with the correct media type, `Cache-Control`, computed RFC 7638 thumbprints, and `nbf`/`exp` for
 rotation overlap. It publishes public keys only; key generation and storage stay outside Badge, and
-the docs describe rotation as *publish new → wait a cache TTL → start using it → keep the old key
-until its `exp`*.
+the docs describe rotation as _publish new → wait a cache TTL → start using it → keep the old key
+until its `exp`_.
 
 ## 13. Observability
 
 One structured record per decision:
 
 ```json
-{"ts":"2026-09-04T16:22:41Z","status":"verified","class":"ok","reason":"ok",
- "signature_agent":"https://agent.example","keyid":"poqkLGiymh_W0…","operator":"openai",
- "action":"allow","rule":"docs-open-to-known-agents","route":"GET /docs/intro",
- "authority":"example.com","profile":"wba-2026-03","cache":"hit","total_us":180}
+{
+  "ts": "2026-09-04T16:22:41Z",
+  "status": "verified",
+  "class": "ok",
+  "reason": "ok",
+  "signature_agent": "https://agent.example",
+  "keyid": "poqkLGiymh_W0…",
+  "operator": "openai",
+  "action": "allow",
+  "rule": "docs-open-to-known-agents",
+  "route": "GET /docs/intro",
+  "authority": "example.com",
+  "profile": "wba-2026-03",
+  "cache": "hit",
+  "total_us": 180
+}
 ```
 
 Never logged by default: full signature bytes, request headers, request bodies. `keyid` and origin
@@ -426,12 +444,12 @@ spec-vectors/  cross-implementation fixtures (JSON)
 
 ## 17. Budgets
 
-| Path | Target |
-| --- | --- |
-| Unsigned request (presence test only) | < 10 µs, no allocation beyond the header lookup |
-| Signed, directory cache hit | < 1 ms, zero I/O; Ed25519 verify dominates |
-| Signed, cache miss | Bounded by the 1 s fetch timeout, then `unverifiable` |
-| Memory | Bounded LRU; no unbounded per-origin structures anywhere |
+| Path                                  | Target                                                   |
+| ------------------------------------- | -------------------------------------------------------- |
+| Unsigned request (presence test only) | < 10 µs, no allocation beyond the header lookup          |
+| Signed, directory cache hit           | < 1 ms, zero I/O; Ed25519 verify dominates               |
+| Signed, cache miss                    | Bounded by the 1 s fetch timeout, then `unverifiable`    |
+| Memory                                | Bounded LRU; no unbounded per-origin structures anywhere |
 
 Badge must never make a request slower than the timeout it advertises, and must never make an
 unsigned request measurably slower at all.
