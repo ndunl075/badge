@@ -1,4 +1,8 @@
 {
   "files": [],
-  "references": [{ "path": "./packages/core" }, { "path": "./packages/testkit" }]
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/policy" },
+    { "path": "./packages/testkit" }
+  ]
 }

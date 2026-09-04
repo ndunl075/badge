@@ -1,0 +1,21 @@
+{
+  "name": "@badge/policy",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Declarative allow / deny / log-only policy over Badge verdicts.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "@badge/core": "workspace:*"
+  }
+}
