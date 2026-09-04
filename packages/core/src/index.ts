@@ -32,5 +32,6 @@ export {
   type Jwk,
   type PublicKey,
 } from './crypto.js'
+export { DEFAULT_PROFILE, PROFILES, WBA_2026_03, getProfile, type Profile } from './profile.js'
 export { createRequest, type RequestInit } from './request.js'
 export { verdictFor, type VerdictDetails } from './verdict.js'
