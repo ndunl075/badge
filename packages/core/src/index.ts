@@ -33,5 +33,14 @@ export {
   type PublicKey,
 } from './crypto.js'
 export { DEFAULT_PROFILE, PROFILES, WBA_2026_03, getProfile, type Profile } from './profile.js'
+export {
+  staticKeyResolver,
+  type CacheResult,
+  type KeyRequest,
+  type KeyResolution,
+  type KeyResolver,
+  type NonceStore,
+} from './keys.js'
 export { createRequest, type RequestInit } from './request.js'
+export { createVerifier, type Verifier, type VerifierOptions } from './verifier.js'
 export { verdictFor, type VerdictDetails } from './verdict.js'
