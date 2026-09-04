@@ -44,6 +44,18 @@ These are load-bearing. Changing one is a design discussion, not a patch.
   a lie in the documentation.
 - Failure paths get the same care as the happy path. Most of the value in a verifier is in what it
   refuses and how clearly it says so.
+- The structured fields parsers are fuzzed. CI runs a short burst on every change; before touching
+  either parser, run a longer campaign by hand:
+
+  ```bash
+  cd sidecar && go test ./sfv/ -run Fuzz -fuzz FuzzParseDictionary -fuzztime 5m
+  ```
+
+  The property is not "parses correctly" but "fails correctly": any input at all must either parse
+  or raise the parser's own error type. A `TypeError` escaping the parser becomes `internal_error`
+  at the verifier, which the reason table reserves for Badge's own failures — so a caller who can
+  provoke one can manufacture Badge-fault verdicts.
+
 - Signed fixtures are regenerated with `pnpm run vectors:generate`. Ed25519 is deterministic and the
   key is fixed, so a diff in `spec-vectors/verdicts.json` means behaviour changed. Explain it.
 

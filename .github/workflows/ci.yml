@@ -46,3 +46,11 @@ jobs:
       # no-op. A diff here means signing behaviour changed and nobody noticed.
       - run: go run ./cmd/gen-vectors && git diff --exit-code ../spec-vectors/go-signed.json
         working-directory: sidecar
+      # A short burst on every change. Structured fields are the outermost
+      # attack surface of the verifier, on input an attacker fully controls, so
+      # it is worth a minute of CI. Longer campaigns are run by hand.
+      - run: |
+          go test ./sfv/ -run Fuzz -fuzz FuzzParseDictionary -fuzztime 20s
+          go test ./sfv/ -run Fuzz -fuzz FuzzParseItem -fuzztime 20s
+          go test ./sfv/ -run Fuzz -fuzz FuzzParseList -fuzztime 20s
+        working-directory: sidecar
