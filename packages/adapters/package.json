@@ -1,0 +1,30 @@
+{
+  "name": "@badge/adapters",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Thin framework adapters: build a request, call inspect, apply the decision.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "@badge/core": "workspace:*",
+    "@badge/middleware": "workspace:*"
+  },
+  "devDependencies": {
+    "@badge/policy": "workspace:*",
+    "@badge/testkit": "workspace:*"
+  }
+}
