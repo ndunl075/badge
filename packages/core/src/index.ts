@@ -28,6 +28,7 @@ export {
   isEd25519,
   jwkThumbprint,
   keyValidityAt,
+  toPublicJwk,
   verifyEd25519,
   type Jwk,
   type PublicKey,

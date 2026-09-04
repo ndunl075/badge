@@ -1,0 +1,29 @@
+{
+  "name": "@badge/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Command line tools for Web Bot Auth keys, directories, policies and debugging.",
+  "license": "Apache-2.0",
+  "bin": {
+    "badge": "./dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@badge/core": "workspace:*",
+    "@badge/directory": "workspace:*",
+    "@badge/policy": "workspace:*",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@badge/testkit": "workspace:*"
+  }
+}

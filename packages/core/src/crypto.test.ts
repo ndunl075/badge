@@ -8,6 +8,7 @@ import {
   isEd25519,
   jwkThumbprint,
   keyValidityAt,
+  toPublicJwk,
   verifyEd25519,
   type Jwk,
 } from './crypto.js'
@@ -127,6 +128,52 @@ describe('Ed25519 verification', () => {
     expect(isEd25519(RFC8037_KEY)).toBe(true)
     expect(isEd25519({ kty: 'OKP', crv: 'X25519', x: 'a' })).toBe(false)
     expect(isEd25519({ kty: 'EC', crv: 'Ed25519', x: 'a' })).toBe(false)
+  })
+})
+
+describe('toPublicJwk', () => {
+  // Deleting `d` from an exported private key leaves `key_ops: ["sign"]` and
+  // `ext: true` behind: a public key advertising that it can sign. Enumerating
+  // what may be published cannot fail that way.
+  it('keeps only public members', () => {
+    const exported = {
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: 'abc',
+      d: 'SECRET',
+      key_ops: ['sign'],
+      ext: true,
+      kid: 'k',
+      nbf: 1,
+      exp: 2,
+    } as unknown as Jwk
+    expect(toPublicJwk(exported)).toEqual({
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: 'abc',
+      kid: 'k',
+      nbf: 1,
+      exp: 2,
+    })
+  })
+
+  it('drops every private member of every key type', () => {
+    const leaky = {
+      kty: 'RSA',
+      n: 'n',
+      e: 'e',
+      d: 'd',
+      p: 'p',
+      q: 'q',
+      dp: 'dp',
+      dq: 'dq',
+      qi: 'qi',
+    } as unknown as Jwk
+    expect(toPublicJwk(leaky)).toEqual({ kty: 'RSA', n: 'n', e: 'e' })
+  })
+
+  it('leaves an already-public key alone', () => {
+    expect(toPublicJwk(RFC8037_KEY)).toEqual(RFC8037_KEY)
   })
 })
 
