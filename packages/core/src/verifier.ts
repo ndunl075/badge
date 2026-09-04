@@ -254,8 +254,10 @@ function checkCoveredComponents(
     if (component.value.type !== 'string') return 'signature_input_malformed'
     names.add(component.value.value)
   }
-  for (const required of profile.requiredComponents) {
-    if (!names.has(required)) return 'covered_components_insufficient'
+  // Each group is satisfied by any one of its members, so a signature over
+  // `@target-uri` satisfies the `@authority` requirement it subsumes.
+  for (const group of profile.requiredComponents) {
+    if (!group.some((name) => names.has(name))) return 'covered_components_insufficient'
   }
   for (const required of profile.requiredComponentsWhenPresent) {
     if (request.header(required) !== undefined && !names.has(required)) {
