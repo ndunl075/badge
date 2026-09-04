@@ -1,4 +1,11 @@
-import { DEFAULT_PROFILE, isEd25519, jwkThumbprint, type Jwk, type Profile } from '@badge/core'
+import {
+  DEFAULT_PROFILE,
+  isEd25519,
+  jwkThumbprint,
+  toPublicJwk,
+  type Jwk,
+  type Profile,
+} from '@badge/core'
 
 export class DirectoryPublishError extends Error {
   override readonly name = 'DirectoryPublishError'
@@ -50,7 +57,9 @@ export async function buildDirectory(options: BuildDirectoryOptions): Promise<Di
           'Pass allowNonEd25519 if that is intended.',
       )
     }
-    published.push({ ...jwk, kid: await jwkThumbprint(jwk) })
+    // Normalized, so a key exported from a private half cannot publish
+    // `key_ops: ["sign"]` or `ext` alongside it.
+    published.push({ ...toPublicJwk(jwk), kid: await jwkThumbprint(jwk) })
   }
 
   return {

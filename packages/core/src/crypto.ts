@@ -83,6 +83,38 @@ export async function jwkThumbprint(jwk: Jwk): Promise<string> {
   return base64UrlEncode(new Uint8Array(digest))
 }
 
+/**
+ * Members a public JWK may carry. Everything else is dropped.
+ *
+ * A whitelist rather than a blacklist, for the same reason publishing refuses
+ * private members by name: deleting `d` from an exported private key leaves
+ * `key_ops: ["sign"]` and `ext: true` behind, which is a public key advertising
+ * that it can sign. Enumerating what may be published cannot fail that way.
+ */
+const PUBLIC_MEMBERS = [
+  'kty',
+  'crv',
+  'x',
+  'y',
+  'n',
+  'e',
+  'kid',
+  'alg',
+  'use',
+  'nbf',
+  'exp',
+] as const
+
+/** Reduce any JWK to the public members a key directory should carry. */
+export function toPublicJwk(jwk: Jwk): Jwk {
+  const source = jwk as unknown as Record<string, unknown>
+  const out: Record<string, unknown> = {}
+  for (const member of PUBLIC_MEMBERS) {
+    if (source[member] !== undefined) out[member] = source[member]
+  }
+  return out as unknown as Jwk
+}
+
 export function isEd25519(jwk: Jwk): boolean {
   return jwk.kty === 'OKP' && jwk.crv === 'Ed25519'
 }
