@@ -1,0 +1,27 @@
+{
+  "name": "badge-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Badge tells you who is knocking, and why you let them in.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm run format:check && pnpm run build && pnpm run test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}
