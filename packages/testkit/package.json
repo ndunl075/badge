@@ -1,10 +1,30 @@
 {
   "name": "@badge/testkit",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Signing helpers, fake directories and fixtures for testing Badge integrations.",
+  "version": "0.1.0",
+  "description": "Web Bot Auth request signer, fixtures and a movable clock, for testing Badge integrations.",
   "license": "Apache-2.0",
+  "keywords": [
+    "web-bot-auth",
+    "http-message-signatures",
+    "rfc9421",
+    "bot",
+    "agent",
+    "middleware",
+    "ed25519"
+  ],
+  "homepage": "https://github.com/ndunl075/badge#readme",
+  "bugs": {
+    "url": "https://github.com/ndunl075/badge/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ndunl075/badge.git",
+    "directory": "packages/testkit"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -12,9 +32,14 @@
     }
   },
   "files": [
+    "README.md",
     "dist"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "dependencies": {
     "@badge/core": "workspace:*"
   }
