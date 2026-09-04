@@ -24,11 +24,12 @@ export interface RequestInit {
  * §2.1. Values are otherwise untouched — no re-serialization, no reordering.
  */
 export function createRequest(init: RequestInit): NormalizedRequest {
-  const headers = new Map<string, string>()
+  const headers = new Map<string, string[]>()
   const add = (name: string, value: string): void => {
     const key = name.toLowerCase()
     const existing = headers.get(key)
-    headers.set(key, existing === undefined ? value : `${existing}, ${value}`)
+    if (existing === undefined) headers.set(key, [value])
+    else existing.push(value)
   }
 
   const source = init.headers
@@ -53,6 +54,7 @@ export function createRequest(init: RequestInit): NormalizedRequest {
     authority: init.authority,
     path,
     query: init.query ?? '',
-    header: (name) => headers.get(name.toLowerCase()),
+    header: (name) => headers.get(name.toLowerCase())?.join(', '),
+    headerValues: (name) => headers.get(name.toLowerCase()),
   }
 }
