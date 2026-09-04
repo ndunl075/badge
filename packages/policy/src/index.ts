@@ -1,5 +1,6 @@
 export { DEFAULT_POLICY, EXAMPLE_POLICY } from './defaults.js'
 export { compilePolicy, type CompiledPolicy } from './evaluate.js'
+export { lintPolicy, reasonsMatching, type Diagnostic, type Severity } from './lint.js'
 export { parsePolicy } from './parse.js'
 export { compileRoute, matchesRoute, type RoutePattern } from './route.js'
 export { PolicyError, type Condition, type Policy, type Rule } from './types.js'

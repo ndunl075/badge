@@ -37,9 +37,14 @@ export const EXAMPLE_POLICY: Policy = {
       routes: ['GET /docs/**', 'GET /blog/**'],
     },
     {
+      // Denies any request carrying a Web Bot Auth claim Badge could actually
+      // evaluate. `unverifiable` is deliberately absent: a directory timeout is
+      // Badge's failure, not the caller's, and denying on it would take
+      // checkout down whenever egress hiccups. An operator who wants the
+      // stricter reading adds `unverifiable` here and accepts the lint warning.
       id: 'no-agents-at-checkout',
       action: 'deny',
-      when: { status: ['verified', 'claimed'] },
+      when: { class: ['ok', 'untrusted', 'malformed', 'expired'] },
       routes: ['POST /checkout/**'],
     },
   ],

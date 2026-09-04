@@ -349,8 +349,11 @@ Rules:
 - **Dry-run** evaluates the full policy and reports what _would_ have happened while acting
   `log-only`. This is how an operator earns the confidence to enforce.
 - **Validator** (`badge policy lint`) catches unreachable rules, unknown operators, malformed globs,
-  and any policy that would deny on `class: unverifiable` — that last one is a warning, not an
-  error, because it is occasionally what someone actually wants.
+  contradictory conditions, ambiguous operator origins, a `deny` default (which blocks every
+  browser), and any rule that would deny on a reason meaning _Badge_ could not check. That last one
+  is a warning, not an error, because it is occasionally what someone actually wants — it is
+  computed exactly, by enumerating the closed reason set against the rule's condition, rather than
+  guessed at.
 
 ## 11. Adapters
 
@@ -483,6 +486,10 @@ algorithms, the tag string, the well-known path, directory media type, window li
 - **Anonymous Web Bot Auth** (`draft-rescorla-anonymous-webbotauth`) — a different privacy model,
   worth a profile once it settles.
 - **Required signed directory responses**, once enough directories actually sign them.
+- **Conditions cannot negate.** There is no way to say "claimed but not `unverifiable`"; you list
+  the classes you mean. That is deliberate for now — negation is where declarative policy languages
+  start growing an evaluator — but it makes the common "deny anything we could actually judge" rule
+  wordier than it should be. A named class group (`evaluable`) is the likely fix.
 - **RFC 9421 component parameters.** `;sf`, `;bs`, `;key`, `;req`, and `;tr` are unimplemented in
   v0 and fail as `unsupported_component`. `;sf` and `;bs` need a per-field type registry to
   canonicalize correctly; `;req` and `;tr` apply only to response signatures. Web Bot Auth's minimum
