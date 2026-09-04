@@ -193,6 +193,11 @@ the draft's own author: Badge verifies what the reference signs, and the referen
 Badge signs. That matters more than it sounds — without it, every signature Badge verified was one
 Badge had produced, and a consistent misreading of the drafts would pass every other test here.
 
+The Go sidecar makes it **three**. It signs `spec-vectors/go-signed.json`, and both the TypeScript
+implementation and the reference implementation verify those bytes. Three implementations that share
+no code agreeing on real signatures is a considerably stronger claim than three agreeing on a
+reading of the prose.
+
 ## Architecture
 
 The full design — trust model, threat model, request path, data model, and the reasoning behind

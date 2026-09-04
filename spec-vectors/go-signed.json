@@ -1,0 +1,80 @@
+{
+  "description": "Requests signed by the Go implementation, for the TypeScript one and the Cloudflare reference implementation to verify. The key is RFC 8037 Appendix A.1 and Ed25519 is deterministic, so these bytes are stable. Regenerate with `go run ./cmd/gen-vectors` from sidecar/.",
+  "keyid": "kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k",
+  "now": 1735689600,
+  "profile": "wba-2026-03",
+  "publishedKeys": [
+    {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+    }
+  ],
+  "signatureAgentOrigin": "https://agent.example",
+  "vectors": [
+    {
+      "name": "the web-bot-auth minimum covered set",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": ""
+      },
+      "headers": {
+        "signature": "sig1=:jo2CDM9DFAq/KISM+qo36FUNz9wzSD8eU0v/1Z+PjjHfkn39mI7rcORlbuqfLJmm9PKbcqCPzSKCInroO1+ZDg==:",
+        "signature-agent": "\"https://agent.example\"",
+        "signature-input": "sig1=(\"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\""
+      },
+      "base": "\"@authority\": example.com\n\"signature-agent\": \"https://agent.example\"\n\"@signature-params\": (\"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\""
+    },
+    {
+      "name": "signing @target-uri instead of @authority",
+      "request": {
+        "method": "GET",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/docs/intro",
+        "query": "a=1"
+      },
+      "headers": {
+        "signature": "sig1=:mx/7XehpOEAWNSjwz2Ixesdu+zWXm243Tx9RBbp9a9/ZaoW/Z/Ta2OboUWVK+8nAWPrwgHQZtlYSi2px4RAVAg==:",
+        "signature-agent": "\"https://agent.example\"",
+        "signature-input": "sig1=(\"@target-uri\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\""
+      },
+      "base": "\"@target-uri\": https://example.com/docs/intro?a=1\n\"signature-agent\": \"https://agent.example\"\n\"@signature-params\": (\"@target-uri\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\""
+    },
+    {
+      "name": "a POST with a query string",
+      "request": {
+        "method": "POST",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/checkout/pay",
+        "query": "cart=abc\u0026ref=x%20y"
+      },
+      "headers": {
+        "signature": "sig1=:tDuHuftuw4G2PPZTPzCgeHkgzPSAF0cqJEVAjxoTlC4ivhvoVlDBBi4Q/3lxpxYwmodlnLGT4zvqtsaRHbpNCg==:",
+        "signature-agent": "\"https://agent.example\"",
+        "signature-input": "sig1=(\"@method\" \"@authority\" \"@path\" \"@query\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\""
+      },
+      "base": "\"@method\": POST\n\"@authority\": example.com\n\"@path\": /checkout/pay\n\"@query\": ?cart=abc\u0026ref=x%20y\n\"signature-agent\": \"https://agent.example\"\n\"@signature-params\": (\"@method\" \"@authority\" \"@path\" \"@query\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\""
+    },
+    {
+      "name": "a non-standard method, preserved exactly",
+      "request": {
+        "method": "foo",
+        "scheme": "https",
+        "authority": "example.com",
+        "path": "/",
+        "query": ""
+      },
+      "headers": {
+        "signature": "sig1=:zBwzcif2k9Z7IlQZtrTqBI/Dvn0ZTLzChx6YSNjvXDlf/ibuHXMUIMEbaD/zye85kHEZDjGOwBdzpbMw1pTnAw==:",
+        "signature-agent": "\"https://agent.example\"",
+        "signature-input": "sig1=(\"@method\" \"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\""
+      },
+      "base": "\"@method\": foo\n\"@authority\": example.com\n\"signature-agent\": \"https://agent.example\"\n\"@signature-params\": (\"@method\" \"@authority\" \"signature-agent\");created=1735689600;expires=1735689660;keyid=\"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\";alg=\"ed25519\";tag=\"web-bot-auth\""
+    }
+  ]
+}
