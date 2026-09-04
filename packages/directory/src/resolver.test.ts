@@ -291,6 +291,121 @@ describe('directory resolver', () => {
     })
   })
 
+  describe('what the resolver refuses to remember', () => {
+    /**
+     * The stale window exists to keep serving while an origin is unwell.
+     * Overwriting good keys with a 30-second negative entry would throw away
+     * the remaining hours of it and hand every caller of that origin an
+     * unverifiable verdict, with valid keys sitting in hand.
+     */
+    it('does not let a failed background refresh evict good stale keys', async () => {
+      const clock = fixedClock(NOW)
+      let healthy = true
+      const http: HttpClient = {
+        async get() {
+          if (!healthy) throw new HttpClientError('briefly down', 'network')
+          return jwksResponse([key.publicJwk], { 'cache-control': 'max-age=60' })
+        },
+      }
+      const resolver = createDirectoryResolver({ http, clock })
+      await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() })
+
+      healthy = false
+      clock.advance(100)
+      expect(
+        await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() }),
+      ).toMatchObject({ ok: true, cache: 'stale' })
+      await new Promise((resolve) => setImmediate(resolve))
+
+      // The refresh failed. The keys are still good and still served.
+      expect(
+        await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() }),
+      ).toMatchObject({ ok: true, cache: 'stale' })
+    })
+
+    it('still refreshes stale keys when the origin is healthy', async () => {
+      const clock = fixedClock(NOW)
+      const http = recorder(() => jwksResponse([key.publicJwk], { 'cache-control': 'max-age=60' }))
+      const resolver = createDirectoryResolver({ http, clock })
+      await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() })
+      clock.advance(61)
+      await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() })
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(
+        await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() }),
+      ).toMatchObject({ cache: 'hit' })
+    })
+
+    /**
+     * The concurrency valve is Badge's backpressure, not a fact about the
+     * origin. Caching it would let an attacker holding the slots open impose a
+     * rolling denial on every legitimate signer whose directory is not already
+     * cached.
+     */
+    it('does not blame an origin it never contacted', async () => {
+      let release = (): void => undefined
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      let slow = true
+      const calls: string[] = []
+      const http: HttpClient = {
+        async get(url) {
+          calls.push(url)
+          if (slow) await gate
+          return jwksResponse([key.publicJwk])
+        },
+      }
+      const resolver = createDirectoryResolver({
+        http,
+        clock: fixedClock(NOW),
+        maxConcurrentFetches: 1,
+      })
+
+      const held = resolver.resolve({ origin: 'https://slow.example', keyid: key.keyid, now: NOW })
+      const refused = await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: NOW })
+      expect(refused).toMatchObject({ ok: false, reason: 'directory_unreachable' })
+
+      release()
+      await held
+      slow = false
+
+      // The healthy origin is tried, not served a cached blame from before.
+      expect(await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: NOW })).toMatchObject({
+        ok: true,
+      })
+      expect(calls).toContain(`${ORIGIN}/.well-known/http-message-signatures-directory`)
+    })
+
+    /**
+     * Breakers are keyed by the attacker-supplied Signature-Agent origin. An
+     * unbounded map is a memory-exhaustion primitive, which is why the cache
+     * and the in-flight set are bounded too.
+     */
+    it('bounds the circuit breaker map', async () => {
+      const clock = fixedClock(NOW)
+      const http = failing(new HttpClientError('down', 'network'))
+      const resolver = createDirectoryResolver({
+        http,
+        clock,
+        negativeTtlSec: 0,
+        breakerThreshold: 1,
+        breakerResetSec: 3600,
+        maxBreakers: 2,
+      })
+
+      // Trip a breaker for the first origin, then push it out with others.
+      for (const host of ['a', 'b', 'c', 'd']) {
+        await resolver.resolve({ origin: `https://${host}.example`, keyid: key.keyid, now: NOW })
+      }
+      const before = http.calls.length
+
+      // Its breaker was evicted, so it is tried again rather than short-circuited.
+      await resolver.resolve({ origin: 'https://a.example', keyid: key.keyid, now: NOW })
+      expect(http.calls.length).toBe(before + 1)
+    })
+  })
+
   describe('egress limits', () => {
     it('never fetches an origin outside the allowlist', async () => {
       const http = recorder(() => jwksResponse([key.publicJwk]))

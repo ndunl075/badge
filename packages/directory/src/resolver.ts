@@ -39,6 +39,14 @@ export interface DirectoryResolverOptions {
   /** Consecutive failures before an origin's breaker opens. */
   readonly breakerThreshold?: number
   readonly breakerResetSec?: number
+  /**
+   * Cap on remembered circuit breakers.
+   *
+   * Breakers are keyed by the attacker-supplied `Signature-Agent` origin, so an
+   * unbounded map is a memory-exhaustion primitive — the same reason the
+   * directory cache and the in-flight set are bounded.
+   */
+  readonly maxBreakers?: number
   /** When set, no other origin is ever fetched. */
   readonly allowedOrigins?: readonly string[]
   /**
@@ -72,6 +80,7 @@ export function createDirectoryResolver(options: DirectoryResolverOptions = {}):
   const maxConcurrentFetches = options.maxConcurrentFetches ?? 32
   const breakerThreshold = options.breakerThreshold ?? 5
   const breakerResetSec = options.breakerResetSec ?? 30
+  const maxBreakers = options.maxBreakers ?? 4096
   const mediaType = options.mediaType ?? 'lenient'
 
   const inFlight = new Map<string, Promise<DirectoryEntry>>()
@@ -110,16 +119,32 @@ export function createDirectoryResolver(options: DirectoryResolverOptions = {}):
       : { ok: true, jwk, cache: cacheResult }
   }
 
+  /**
+   * The result of a fetch attempt.
+   *
+   * `cacheable` is false when the attempt never reached the network — the local
+   * concurrency valve refused it. Caching that would blame an origin Badge
+   * never contacted, and hold the blame for `negativeTtlSec` afterwards.
+   */
+  interface FetchOutcome {
+    readonly entry: DirectoryEntry
+    readonly cacheable: boolean
+  }
+
   /** One fetch per origin at a time, however many requests are waiting on it. */
-  const fetchOnce = async (origin: string): Promise<DirectoryEntry> => {
+  const fetchOnce = async (origin: string): Promise<FetchOutcome> => {
     const existing = inFlight.get(origin)
-    if (existing !== undefined) return await existing
+    if (existing !== undefined) return { entry: await existing, cacheable: true }
 
     if (inFlight.size >= maxConcurrentFetches) {
       // Refusing is better than queueing: an attacker naming thousands of
       // origins would otherwise convert request concurrency into an unbounded
-      // outbound fan-out.
-      return failureEntry('directory_unreachable', clock.now(), negativeTtlSec)
+      // outbound fan-out. But this is our backpressure, not the origin's fault,
+      // so it is reported to this caller and then forgotten.
+      return {
+        entry: failureEntry('directory_unreachable', clock.now(), negativeTtlSec),
+        cacheable: false,
+      }
     }
 
     const pending = (async () => {
@@ -135,7 +160,7 @@ export function createDirectoryResolver(options: DirectoryResolverOptions = {}):
       }
     })()
     inFlight.set(origin, pending)
-    return await pending
+    return { entry: await pending, cacheable: true }
   }
 
   const recordFailure = (origin: string): void => {
@@ -144,7 +169,23 @@ export function createDirectoryResolver(options: DirectoryResolverOptions = {}):
     if (breaker.failures >= breakerThreshold) {
       breaker.openUntil = clock.now() + breakerResetSec
     }
+    breakers.delete(origin)
     breakers.set(origin, breaker)
+    if (breakers.size > maxBreakers) pruneBreakers()
+  }
+
+  const pruneBreakers = (): void => {
+    const now = clock.now()
+    for (const [origin, breaker] of breakers) {
+      if (breaker.openUntil <= now) breakers.delete(origin)
+    }
+    // Evicting a breaker only means the origin may be tried again, which is
+    // safe. That is why an LRU is acceptable here and not for nonces.
+    while (breakers.size > maxBreakers) {
+      const oldest = breakers.keys().next()
+      if (oldest.done === true) break
+      breakers.delete(oldest.value)
+    }
   }
 
   const fetchDirectory = async (origin: string): Promise<DirectoryEntry> => {
@@ -208,7 +249,16 @@ export function createDirectoryResolver(options: DirectoryResolverOptions = {}):
         // whole cache exists to avoid.
         if (!breakerOpen) {
           void fetchOnce(origin)
-            .then(async (entry) => cache.set(origin, entry))
+            .then(async (outcome) => {
+              // Never overwrite a usable stale entry with a failure. The stale
+              // window exists precisely to keep serving while the origin is
+              // unwell; replacing good keys with a 30-second negative entry
+              // would throw away the remaining hours of it and hand every
+              // caller of that origin an `unverifiable` verdict.
+              if (outcome.cacheable && outcome.entry.failure === undefined) {
+                await cache.set(origin, outcome.entry)
+              }
+            })
             .catch(() => undefined)
         }
         return await answer(cached, keyid, 'stale')
@@ -219,9 +269,9 @@ export function createDirectoryResolver(options: DirectoryResolverOptions = {}):
         return { ok: false, reason: 'directory_unreachable', cache: 'miss' }
       }
 
-      const entry = await fetchOnce(origin)
-      await cache.set(origin, entry)
-      return await answer(entry, keyid, 'miss')
+      const outcome = await fetchOnce(origin)
+      if (outcome.cacheable) await cache.set(origin, outcome.entry)
+      return await answer(outcome.entry, keyid, 'miss')
     },
   }
 }
