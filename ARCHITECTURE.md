@@ -6,8 +6,9 @@ Badge is middleware. It inspects an incoming HTTP request, decides whether the c
 **verified** agent, a **claimed** one, or **unknown**, applies an operator-authored policy, and
 emits a structured record of exactly why it decided that.
 
-Status: pre-v0 design document. This is the contract the code is written against; where code and
-this file disagree, one of them is a bug.
+Status: pre-v0. All five v0 components described below are implemented and tested; nothing is
+published to npm. This is the contract the code is written against; where code and this file
+disagree, one of them is a bug. `examples/demo.mjs` runs the whole path end to end.
 
 ---
 
@@ -478,9 +479,10 @@ algorithms, the tag string, the well-known path, directory media type, window li
 ## 19. Open questions and deferred work
 
 - **The fifth v0 deliverable.** The brief lists five and enumerates four before it cuts off.
-  §5 assumes observability + dry-run, since "reports exactly why it decided that" is load-bearing in
-  the pitch. If the intended fifth was the CLI, the conformance-vector suite, or something else,
-  this is the line to correct.
+  §5 assumed observability + dry-run, since "reports exactly why it decided that" is load-bearing in
+  the pitch, and that is what was built. The CLI and the conformance-vector suite were built too, so
+  whichever of the three was intended is covered — but if the fifth was something else entirely,
+  this is still the line to correct.
 - **Go sidecar.** The single largest reach multiplier after v0, and the only answer for
   non-JS origins. §5 explains why it is not first.
 - **Trust registry.** `draft-meunier-webbotauth-registry` and Signature Agent cards would let Badge
