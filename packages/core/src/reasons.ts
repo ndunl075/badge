@@ -52,6 +52,14 @@ export const REASONS = {
   validity_window_too_long: { status: 'claimed', class: 'malformed' },
   /** Replay protection is on and the signature carried no `nonce`. */
   nonce_missing: { status: 'claimed', class: 'malformed' },
+  /**
+   * The nonce is too short, or is not base64.
+   *
+   * A short nonce is not merely weak: an attacker can enumerate the space and
+   * pre-seed the replay store, so a legitimate signer's own requests come back
+   * as `replay_detected`. Rejecting it protects the signer from that.
+   */
+  nonce_invalid: { status: 'claimed', class: 'malformed' },
   /** The caller signed a field or query parameter it did not send. */
   covered_component_missing: { status: 'claimed', class: 'malformed' },
 

@@ -28,6 +28,18 @@ export interface VerifierOptions {
   readonly allowedOrigins?: readonly string[]
   /** Opt-in replay protection. Off by default — see ARCHITECTURE.md §8.4. */
   readonly replay?: NonceStore
+  /**
+   * Smallest nonce Badge will accept, in decoded bytes, when replay protection
+   * is on.
+   *
+   * The reference implementation generates and requires exactly 64. Badge's
+   * default is lower so a signer using a shorter but still unguessable nonce
+   * interoperates, and high enough that the space cannot be enumerated and
+   * pre-seeded into the replay store — which would turn replay protection into
+   * a denial of service against the signer it is meant to protect. Set it to 64
+   * to match the reference exactly.
+   */
+  readonly minNonceBytes?: number
 }
 
 export interface Verifier {
@@ -52,6 +64,7 @@ export function createVerifier(options: VerifierOptions): Verifier {
   const clock = options.clock ?? systemClock
   const clockSkewSec = options.clockSkewSec ?? 5
   const maxAgeSec = options.maxAgeSec ?? 300
+  const minNonceBytes = options.minNonceBytes ?? 16
   const allowedOrigins = options.allowedOrigins
 
   return {
@@ -197,6 +210,7 @@ export function createVerifier(options: VerifierOptions): Verifier {
         if (options.replay !== undefined) {
           const nonce = stringParam(params, 'nonce')
           if (nonce === undefined) return done('nonce_missing')
+          if (decodedNonceBytes(nonce) < minNonceBytes) return done('nonce_invalid')
           let fresh: boolean
           try {
             fresh = await options.replay.checkAndRecord(nonce, expires ?? now + maxAgeSec)
@@ -294,6 +308,18 @@ function signatureFor(signatures: Dictionary, label: string): Uint8Array | undef
   if (entry?.value.kind !== 'item') return undefined
   if (entry.value.value.type !== 'binary') return undefined
   return entry.value.value.value
+}
+
+/**
+ * Decoded length of a base64 or base64url nonce, or 0 if it is not either.
+ *
+ * Computed from the encoded length rather than by decoding: the value is
+ * attacker-controlled and there is no reason to allocate a buffer for it.
+ */
+function decodedNonceBytes(nonce: string): number {
+  if (!/^[A-Za-z0-9+/_-]+={0,2}$/.test(nonce)) return 0
+  const unpadded = nonce.replace(/=+$/, '').length
+  return Math.floor((unpadded * 3) / 4)
 }
 
 function stringParam(params: ReadonlyMap<string, BareItem>, name: string): string | undefined {
