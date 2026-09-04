@@ -21,6 +21,22 @@ importers:
         specifier: ^3.0.5
         version: 3.2.7(@types/node@22.20.1)
 
+  packages/adapters:
+    dependencies:
+      '@badge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@badge/middleware':
+        specifier: workspace:*
+        version: link:../middleware
+    devDependencies:
+      '@badge/policy':
+        specifier: workspace:*
+        version: link:../policy
+      '@badge/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+
   packages/core:
     devDependencies:
       '@badge/testkit':
