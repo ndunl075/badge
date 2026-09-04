@@ -150,7 +150,12 @@ function componentValue(
   }
   switch (name) {
     case '@method':
-      return request.method.toUpperCase()
+      // RFC 9421 §2.2.1 takes the method as-is and notes that method names are
+      // case-sensitive. Standard methods already arrive uppercase; uppercasing
+      // a non-standard one would disagree with a correct signer, and would also
+      // let one signature cover two methods differing only in case. Confirmed
+      // against the reference implementation, which signs `foo` as `foo`.
+      return request.method
     case '@authority':
       return normalizeAuthority(request.authority, request.scheme)
     case '@scheme':
@@ -375,5 +380,16 @@ function queryParam(component: Item, request: NormalizedRequest): string {
       'unsupported_component',
     )
   }
-  return decodeURIComponent((matches[0] as string).replace(/\+/g, ' '))
+  try {
+    return decodeURIComponent((matches[0] as string).replace(/\+/g, ' '))
+  } catch {
+    // A malformed percent-escape is caller-controlled input. Letting the raw
+    // URIError escape would surface as `internal_error`, which the reason table
+    // reserves for Badge's own failures — handing any caller a way to
+    // manufacture Badge-fault verdicts.
+    throw new SignatureBaseError(
+      `covered query parameter is not valid percent-encoding: ${target}`,
+      'covered_component_malformed',
+    )
+  }
 }
