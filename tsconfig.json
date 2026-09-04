@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/core" },
+    { "path": "./packages/directory" },
     { "path": "./packages/policy" },
     { "path": "./packages/testkit" }
   ]
