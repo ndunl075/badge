@@ -18,4 +18,6 @@ export {
   type Verdict,
   type VerdictTiming,
 } from './types.js'
+export { SignatureBaseError, buildSignatureBase, type SignatureBaseInput } from './base.js'
+export { createRequest, type RequestInit } from './request.js'
 export { verdictFor, type VerdictDetails } from './verdict.js'

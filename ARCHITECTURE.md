@@ -248,6 +248,9 @@ directly**. `status` is the headline; `class` is what you build rules on.
 
 `directory_malformed` is `unverifiable`, not `untrusted`: a broken directory is far more often an
 operator's deploy bug than an attack, and the safe reading of ambiguity is "we could not check".
+`unsupported_component` follows the same principle from the other direction — a caller using a
+legitimate RFC 9421 feature Badge has not implemented is _our_ gap, and guessing at a base we cannot
+build would surface as `signature_invalid` and libel a well-behaved caller.
 
 The table lives in code at `packages/core/src/reasons.ts` and is asserted by tests. Codes are added,
 never repurposed — a log line written a year ago must still mean what it meant then.
@@ -480,6 +483,10 @@ algorithms, the tag string, the well-known path, directory media type, window li
 - **Anonymous Web Bot Auth** (`draft-rescorla-anonymous-webbotauth`) — a different privacy model,
   worth a profile once it settles.
 - **Required signed directory responses**, once enough directories actually sign them.
+- **RFC 9421 component parameters.** `;sf`, `;bs`, `;key`, `;req`, and `;tr` are unimplemented in
+  v0 and fail as `unsupported_component`. `;sf` and `;bs` need a per-field type registry to
+  canonicalize correctly; `;req` and `;tr` apply only to response signatures. Web Bot Auth's minimum
+  covered set needs none of them.
 - **Multi-value `Signature-Agent`** and multiple concurrent `web-bot-auth` signatures: v0 selects the
   first and ignores the rest. Revisit if signers start chaining identities.
 - **Rate limiting keyed on verified identity** — the obvious next feature, and explicitly out of v0
