@@ -32,6 +32,10 @@ importers:
       '@badge/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
+      '@badge/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/policy:
     dependencies:
