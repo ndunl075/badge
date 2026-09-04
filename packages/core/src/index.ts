@@ -19,5 +19,18 @@ export {
   type VerdictTiming,
 } from './types.js'
 export { SignatureBaseError, buildSignatureBase, type SignatureBaseInput } from './base.js'
+export {
+  KeyError,
+  base64UrlDecode,
+  base64UrlEncode,
+  canonicalJwkJson,
+  importEd25519PublicKey,
+  isEd25519,
+  jwkThumbprint,
+  keyValidityAt,
+  verifyEd25519,
+  type Jwk,
+  type PublicKey,
+} from './crypto.js'
 export { createRequest, type RequestInit } from './request.js'
 export { verdictFor, type VerdictDetails } from './verdict.js'
