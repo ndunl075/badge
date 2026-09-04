@@ -226,6 +226,13 @@ describe('failure paths', () => {
     await expectReason(signed.request, 'covered_components_insufficient')
   })
 
+  // @target-uri contains the authority and pins more besides, so it satisfies
+  // the requirement rather than failing it.
+  it('accepts @target-uri in place of @authority', async () => {
+    const signed = await sign({ components: ['"@target-uri"', '"signature-agent"'] })
+    await expectReason(signed.request, 'ok')
+  })
+
   it('covered_components_insufficient when Signature-Agent is sent but not covered', async () => {
     const signed = await sign({ components: ['"@authority"'] })
     expect(signed.request.header('signature-agent')).toBeDefined()

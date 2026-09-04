@@ -12,8 +12,16 @@ describe('profiles', () => {
   })
 
   it('requires the minimum covered component set', () => {
-    expect(WBA_2026_03.requiredComponents).toContain('@authority')
+    expect(WBA_2026_03.requiredComponents).toEqual([['@authority', '@target-uri']])
     expect(WBA_2026_03.requiredComponentsWhenPresent).toContain('signature-agent')
+  })
+
+  // @target-uri contains the authority and additionally pins scheme, path and
+  // query, so demanding @authority literally would reject a stronger signature.
+  it('accepts @target-uri as an alternative to @authority', () => {
+    const group = WBA_2026_03.requiredComponents[0] as readonly string[]
+    expect(group).toContain('@authority')
+    expect(group).toContain('@target-uri')
   })
 
   it('caps the validity window at the 24 hours the draft recommends', () => {

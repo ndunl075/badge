@@ -21,8 +21,17 @@ export interface Profile {
   readonly directoryMediaType: string
   /** Permitted `alg` parameter values. */
   readonly algorithms: readonly string[]
-  /** Components every signature must cover. */
-  readonly requiredComponents: readonly string[]
+  /**
+   * Component groups every signature must cover, where a group is satisfied by
+   * covering **any one** of its members.
+   *
+   * Alternatives rather than a flat list, because `@target-uri` is a legitimate
+   * and strictly stronger substitute for `@authority`: it contains the
+   * authority and additionally pins the scheme, path and query. Demanding
+   * `@authority` literally would reject a better signature than the one the
+   * profile asks for.
+   */
+  readonly requiredComponents: readonly (readonly string[])[]
   /** Components that must be covered whenever the request carries that header. */
   readonly requiredComponentsWhenPresent: readonly string[]
   /** Whether `Signature-Agent` is required for key discovery. */
@@ -39,7 +48,8 @@ export interface Profile {
  * Tracks the drafts as of March 2026.
  *
  * `alg` is a String rather than a Token in the Web Bot Auth examples, and the
- * minimum covered set is `@authority` plus `signature-agent` when present.
+ * minimum covered set is `@authority` (or `@target-uri`) plus `signature-agent`
+ * when present.
  */
 export const WBA_2026_03: Profile = {
   id: 'wba-2026-03',
@@ -51,7 +61,7 @@ export const WBA_2026_03: Profile = {
   directoryPath: '/.well-known/http-message-signatures-directory',
   directoryMediaType: 'application/http-message-signatures-directory+json',
   algorithms: ['ed25519'],
-  requiredComponents: ['@authority'],
+  requiredComponents: [['@authority', '@target-uri']],
   requiredComponentsWhenPresent: ['signature-agent'],
   requireSignatureAgent: true,
   requireKeyid: true,
