@@ -11,6 +11,26 @@ why both are checked against the same fixtures in `../spec-vectors/`. Those base
 rather than generated from either implementation, so agreement between the three is worth something.
 
 ```bash
-go test ./...
-go run ./cmd/badge-proxy -config badge.yaml
+go test -race ./...
+go run ./cmd/badge-proxy -config badge.example.yaml
 ```
+
+Start with `dryRun: true`. The proxy then evaluates the whole policy, records
+what it *would* have done in each decision record's `would_action`, and refuses
+nothing. Feed that log to `badge report` from the TypeScript CLI — the record
+format is the same — and it will tell you how much currently-served traffic
+enforcing would turn away.
+
+The default policy denies nothing, so putting this in front of a live site
+cannot break it.
+
+## What it shares with the TypeScript, and what it does not
+
+It shares the **policy file format**, the **decision record format**, the
+**reason codes**, and the fixtures in `../spec-vectors/`. It shares no code.
+
+That is deliberate. Two implementations written from the same specification can
+disagree, and the vectors are where that disagreement shows up as a test failure
+rather than as a production incident. The reason code tables in particular are
+duplicated, which is a real cost: `spec-vectors/verdicts.json` is what catches
+the drift.
