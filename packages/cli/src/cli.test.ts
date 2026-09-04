@@ -156,6 +156,127 @@ describe('badge policy', () => {
   })
 })
 
+describe('badge report', () => {
+  const LINES = [
+    {
+      ts: '2026-09-01T00:00:00Z',
+      status: 'unknown',
+      class: 'absent',
+      reason: 'no_signature_fields',
+      action: 'log-only',
+      rule: 'default',
+      would_action: 'log-only',
+    },
+    {
+      ts: '2026-09-02T00:00:00Z',
+      status: 'verified',
+      class: 'ok',
+      reason: 'ok',
+      action: 'log-only',
+      rule: 'docs-open',
+      would_action: 'allow',
+      operator: 'example',
+      signature_agent: 'https://agent.example',
+    },
+    {
+      ts: '2026-09-03T00:00:00Z',
+      status: 'claimed',
+      class: 'untrusted',
+      reason: 'signature_invalid',
+      action: 'log-only',
+      rule: 'forgeries',
+      would_action: 'deny',
+      signature_agent: 'https://agent.example',
+    },
+    {
+      ts: '2026-09-03T01:00:00Z',
+      status: 'claimed',
+      class: 'unverifiable',
+      reason: 'directory_timeout',
+      action: 'log-only',
+      rule: 'default',
+      would_action: 'log-only',
+      signature_agent: 'https://slow.example',
+    },
+  ]
+
+  const logFile = async (lines: unknown[], extra = ''): Promise<string> => {
+    const file = join(dir, `log-${Math.random().toString(36).slice(2)}.jsonl`)
+    await writeFile(file, `${lines.map((l) => JSON.stringify(l)).join('\n')}\n${extra}`)
+    return file
+  }
+
+  it('summarises verdicts, actions and reasons', async () => {
+    const result = await invoke('report', await logFile(LINES))
+    expect(result.code).toBe(EXIT_OK)
+    expect(result.out).toContain('4 decisions')
+    expect(result.out).toContain('verified/ok')
+    expect(result.out).toContain('signature_invalid')
+  })
+
+  // The one number an operator needs before enforcing.
+  it('says how much currently-served traffic enforcing would refuse', async () => {
+    const result = await invoke('report', await logFile(LINES))
+    expect(result.out).toContain('1 request(s) that are served today would be refused')
+    expect(result.out).toContain('by rule "forgeries"')
+  })
+
+  it('says so plainly when enforcing would change nothing', async () => {
+    const harmless = LINES.filter((l) => l.would_action !== 'deny')
+    const result = await invoke('report', await logFile(harmless))
+    expect(result.out).toContain('Enforcing looks safe')
+  })
+
+  // Warning the operator about the trap the whole class axis exists to prevent.
+  it('flags decisions that failed because Badge could not check', async () => {
+    const result = await invoke('report', await logFile(LINES))
+    expect(result.out).toContain('not because the caller did anything wrong')
+  })
+
+  it('groups an agent under one entry whether or not a record labelled it', async () => {
+    const result = await invoke('report', await logFile(LINES))
+    expect(result.out).toContain('https://agent.example (example)')
+    expect(result.out.match(/https:\/\/agent\.example/g)).toHaveLength(1)
+  })
+
+  it('explains that a non-dry-run log cannot predict anything', async () => {
+    const plain = LINES.map(({ would_action: _ignored, ...rest }) => rest)
+    const result = await invoke('report', await logFile(plain))
+    expect(result.out).toContain('was not recorded in dry run')
+  })
+
+  it('skips unparsable lines instead of giving up', async () => {
+    const result = await invoke('report', await logFile(LINES, 'not json at all\n'))
+    expect(result.code).toBe(EXIT_OK)
+    expect(result.out).toContain('1 lines could not be parsed')
+  })
+
+  it('emits JSON on request', async () => {
+    const result = await invoke('report', await logFile(LINES), '--json')
+    const parsed = JSON.parse(result.out) as {
+      total: number
+      dryRun: { newlyDenied: number; byRule: Record<string, number> }
+    }
+    expect(parsed.total).toBe(4)
+    expect(parsed.dryRun.newlyDenied).toBe(1)
+    expect(parsed.dryRun.byRule).toEqual({ forgeries: 1 })
+  })
+
+  it('fails when the log has no usable records', async () => {
+    const file = join(dir, 'empty.jsonl')
+    await writeFile(file, '\n')
+    expect((await invoke('report', file)).code).toBe(EXIT_FAILED)
+  })
+
+  it('reports an unreadable file as a usage error', async () => {
+    expect((await invoke('report', join(dir, 'nope.jsonl'))).code).toBe(EXIT_USAGE)
+  })
+
+  it('rejects a nonsensical --top', async () => {
+    expect((await invoke('report', await logFile(LINES), '--top', '0')).code).toBe(EXIT_USAGE)
+  })
+})
+
 describe('badge verify', () => {
   const publicKeyFile = async (): Promise<string> => {
     const file = join(dir, `pub-${Math.random().toString(36).slice(2)}.json`)

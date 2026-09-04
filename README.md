@@ -129,6 +129,31 @@ createVerifier({ keys, replay: kvNonceStore(kv) })
 A store outage reports `nonce_store_unavailable` — `unverifiable`, never a replay. Denying
 legitimate traffic the moment Redis hiccups is the failure mode the class axis exists to prevent.
 
+## Decide when to enforce
+
+Badge's default is `log-only`, and `dryRun: true` makes it evaluate the whole policy while still
+acting `log-only`, recording what it _would_ have done. `badge report` turns that log into an answer:
+
+```
+$ badge report decisions.jsonl
+
+if you turn dry run off (48,201 records were dry run)
+  log-only     47,760   99.1%
+  allow           400    0.8%
+  deny             41    0.1%
+
+  41 request(s) that are served today would be refused (0.1%):
+    41 by rule "forgeries-are-hostile"
+
+  Check those are traffic you meant to turn away before enforcing.
+
+12 decision(s) (0.0%) failed because Badge could not complete
+the check, not because the caller did anything wrong.
+```
+
+That first number — traffic served today that would start being refused — is the one worth knowing
+before you flip the switch.
+
 ## Design commitments
 
 - **Installing Badge cannot break your site.** The default policy is `log-only`, and Badge never
