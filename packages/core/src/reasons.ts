@@ -62,6 +62,14 @@ export const REASONS = {
   nonce_invalid: { status: 'claimed', class: 'malformed' },
   /** The caller signed a field or query parameter it did not send. */
   covered_component_missing: { status: 'claimed', class: 'malformed' },
+  /**
+   * A covered field was sent, but is not the structured field its component
+   * parameters claim it is.
+   *
+   * Distinct from `covered_component_missing` on purpose: an operator reading
+   * that code goes looking for an absent header, and this one was present.
+   */
+  covered_field_not_structured: { status: 'claimed', class: 'malformed' },
 
   // -- expired: a real claim, outside its window ----------------------------
   created_in_future: { status: 'claimed', class: 'expired' },

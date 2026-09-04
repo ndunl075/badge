@@ -86,6 +86,12 @@ export interface SignatureBaseInput {
 export function buildSignatureBase(input: SignatureBaseInput): string {
   const lines: string[] = []
   const seen = new Set<string>()
+  // Merged once per request rather than once per covered component: the inputs
+  // are fixed for the life of the verifier and this is the hot path.
+  const types: Readonly<Record<string, StructuredFieldType>> =
+    input.structuredFieldTypes === undefined
+      ? DEFAULT_STRUCTURED_FIELDS
+      : { ...DEFAULT_STRUCTURED_FIELDS, ...input.structuredFieldTypes }
 
   for (const component of input.components) {
     if (component.value.type !== 'string') {
@@ -122,16 +128,20 @@ export function buildSignatureBase(input: SignatureBaseInput): string {
     }
     seen.add(identifier)
 
-    lines.push(`${identifier}: ${componentValue(name, component, input)}`)
+    lines.push(`${identifier}: ${componentValue(name, component, input.request, types)}`)
   }
 
   lines.push(`"@signature-params": ${input.signatureParamsSource}`)
   return lines.join('\n')
 }
 
-function componentValue(name: string, component: Item, input: SignatureBaseInput): string {
-  const request = input.request
-  if (!name.startsWith('@')) return fieldComponent(name, component, input)
+function componentValue(
+  name: string,
+  component: Item,
+  request: NormalizedRequest,
+  types: Readonly<Record<string, StructuredFieldType>>,
+): string {
+  if (!name.startsWith('@')) return fieldComponent(name, component, request, types)
   if (RESPONSE_ONLY.has(name)) {
     throw new SignatureBaseError(
       `${name} is only valid for response signatures`,
@@ -160,9 +170,31 @@ function componentValue(name: string, component: Item, input: SignatureBaseInput
   }
 }
 
-function fieldComponent(name: string, component: Item, input: SignatureBaseInput): string {
-  const bs = component.params.has('bs')
-  const sf = component.params.has('sf')
+/**
+ * Whether a boolean component parameter is actually set.
+ *
+ * `params.has()` is not enough: RFC 9651 lets a signer write `;sf=?0`, which
+ * means the flag is off. Treating it as on would canonicalize a field the
+ * signer left raw, and the resulting base would differ by a few bytes — a
+ * well-behaved signer reported as `signature_invalid`.
+ */
+function flagSet(component: Item, name: string): boolean {
+  const value = component.params.get(name)
+  if (value === undefined) return false
+  if (value.type !== 'boolean') {
+    throw new SignatureBaseError(`;${name} must be a boolean`, 'signature_input_malformed')
+  }
+  return value.value
+}
+
+function fieldComponent(
+  name: string,
+  component: Item,
+  request: NormalizedRequest,
+  types: Readonly<Record<string, StructuredFieldType>>,
+): string {
+  const bs = flagSet(component, 'bs')
+  const sf = flagSet(component, 'sf')
   const keyParam = component.params.get('key')
 
   if (keyParam !== undefined && keyParam.type !== 'string') {
@@ -176,11 +208,16 @@ function fieldComponent(name: string, component: Item, input: SignatureBaseInput
     )
   }
 
-  if (bs) return byteSequenceValue(name, input.request)
+  if (bs) return byteSequenceValue(name, request)
   if (sf || keyParam !== undefined) {
-    return structuredValue(name, input, keyParam?.type === 'string' ? keyParam.value : undefined)
+    return structuredValue(
+      name,
+      request,
+      types,
+      keyParam?.type === 'string' ? keyParam.value : undefined,
+    )
   }
-  return fieldValue(name, input.request)
+  return fieldValue(name, request)
 }
 
 function fieldValue(name: string, request: NormalizedRequest): string {
@@ -212,19 +249,47 @@ function byteSequenceValue(name: string, request: NormalizedRequest): string {
     )
   }
   return values
-    .map((value) => {
-      const normalized = value.replace(/\r?\n[ \t]+/g, ' ').trim()
-      return `:${Buffer.from(normalized, 'utf8').toString('base64')}:`
-    })
+    .map((value) => `:${base64OfFieldValue(value.replace(/\r?\n[ \t]+/g, ' ').trim())}:`)
     .join(', ')
 }
 
+/**
+ * Base64 of a field value's own bytes.
+ *
+ * Uses `btoa` rather than Node's `Buffer` for two reasons. Core targets Deno,
+ * Bun and Workers as well as Node, and `Buffer` is not defined there — a `;bs`
+ * component would have thrown `ReferenceError` and surfaced as
+ * `internal_error`. And Node hands header values over already decoded as
+ * latin1, one character per wire byte, so re-encoding them as UTF-8 turns byte
+ * 0xE9 into 0xC3 0xA9 and produces a base that disagrees with a correct signer.
+ * `btoa` maps character codes 0–255 straight back to those bytes.
+ */
+function base64OfFieldValue(value: string): string {
+  for (let i = 0; i < value.length; i += 1) {
+    if (value.charCodeAt(i) > 0xff) {
+      throw new SignatureBaseError(
+        'field value carries characters outside the byte range, so its wire bytes cannot be recovered',
+        'unsupported_component',
+      )
+    }
+  }
+  return btoa(value)
+}
+
 /** RFC 9421 §2.1.1 (`;sf`) and §2.1.2 (`;key`): re-serialize the field strictly. */
-function structuredValue(name: string, input: SignatureBaseInput, key: string | undefined): string {
-  const raw = fieldValue(name, input.request)
-  const types = { ...DEFAULT_STRUCTURED_FIELDS, ...input.structuredFieldTypes }
+function structuredValue(
+  name: string,
+  request: NormalizedRequest,
+  types: Readonly<Record<string, StructuredFieldType>>,
+  key: string | undefined,
+): string {
+  const raw = fieldValue(name, request)
   // ;key only has meaning for a Dictionary, so it settles the type by itself.
-  const type = key !== undefined ? 'dictionary' : types[name]
+  // `Object.hasOwn` rather than a plain lookup: a header literally named
+  // `constructor` or `__proto__` would otherwise resolve through the prototype
+  // chain to a truthy value and slip past the unknown-type guard.
+  const type =
+    key !== undefined ? 'dictionary' : Object.hasOwn(types, name) ? types[name] : undefined
   if (type === undefined) {
     throw new SignatureBaseError(
       `no structured field type is known for "${name}", so ;sf cannot canonicalize it`,
@@ -255,7 +320,7 @@ function structuredValue(name: string, input: SignatureBaseInput, key: string | 
     if (err instanceof SignatureBaseError) throw err
     throw new SignatureBaseError(
       `covered field ${name} is not a valid structured field`,
-      'covered_component_missing',
+      'covered_field_not_structured',
     )
   }
 }

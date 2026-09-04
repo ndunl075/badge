@@ -75,12 +75,44 @@ describe('component parameters', () => {
       )
     })
 
-    it('reports a field that is not a valid structured field', () => {
+    // A distinct code from covered_component_missing: an operator reading that
+    // one goes looking for an absent header, and this header was present.
+    it('reports a present field that is not a valid structured field', () => {
       try {
         line('"content-digest";sf', { 'content-digest': 'not a dictionary!' })
         expect.unreachable('should have thrown')
       } catch (err) {
-        expect((err as SignatureBaseError).reason).toBe('covered_component_missing')
+        expect((err as SignatureBaseError).reason).toBe('covered_field_not_structured')
+      }
+    })
+
+    /**
+     * A header literally named `constructor` resolves through the prototype
+     * chain to a truthy value on an object literal, slipping past the
+     * unknown-type guard and canonicalizing under a guessed type — the exact
+     * outcome the type map exists to prevent.
+     */
+    it.each(['constructor', '__proto__', 'tostring'])(
+      'does not resolve the field name %s through the prototype chain',
+      (name) => {
+        expect(() => line(`"${name}";sf`, { [name]: 'a=1' })).toThrow(SignatureBaseError)
+      },
+    )
+
+    // RFC 9651 lets a signer write ;sf=?0, which means the flag is off.
+    // Canonicalizing anyway would change the base and libel a well-behaved signer.
+    it('treats ;sf=?0 as not set', () => {
+      expect(
+        line('"cache-control";sf=?0', { 'cache-control': 'max-age=60,  must-revalidate' }),
+      ).toBe('"cache-control";sf=?0: max-age=60,  must-revalidate')
+    })
+
+    it('rejects a non-boolean ;sf', () => {
+      try {
+        line('"cache-control";sf="yes"', { 'cache-control': 'max-age=60' })
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        expect((err as SignatureBaseError).reason).toBe('signature_input_malformed')
       }
     })
   })
@@ -129,6 +161,28 @@ describe('component parameters', () => {
 
     it('handles a single value', () => {
       expect(line('"x-one";bs', { 'x-one': 'abc' })).toBe('"x-one";bs: :YWJj:')
+    })
+
+    it('treats ;bs=?0 as not set', () => {
+      expect(line('"x-one";bs=?0', { 'x-one': 'abc' })).toBe('"x-one";bs=?0: abc')
+    })
+
+    /**
+     * Node hands header values over already decoded as latin1, one character
+     * per wire byte. Re-encoding as UTF-8 would turn byte 0xE9 into 0xC3 0xA9
+     * and produce a base that disagrees with a correct signer.
+     */
+    it('encodes the field value byte for byte, not as UTF-8', () => {
+      expect(line('"x-one";bs', { 'x-one': '\u00e9' })).toBe('"x-one";bs: :6Q==:')
+    })
+
+    it('refuses a value whose wire bytes cannot be recovered', () => {
+      try {
+        line('"x-one";bs', { 'x-one': '\u20ac' })
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        expect((err as SignatureBaseError).reason).toBe('unsupported_component')
+      }
     })
 
     it('trims each value before encoding', () => {
