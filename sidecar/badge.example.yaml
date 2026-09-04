@@ -1,0 +1,40 @@
+# badge-proxy configuration.
+#
+# Start here, run with dryRun on, read the decision log, and only then enforce.
+
+listen: ":8080"
+upstream: "http://127.0.0.1:3000"
+
+# "host" trusts the Host header and is correct when the proxy is the first hop.
+# "forwarded" trusts Forwarded / X-Forwarded-Host and is only safe when
+# something you operate strips those from client requests. "fixed:example.com"
+# is the safest option when the public name is known.
+authority: host
+scheme: auto
+
+# Evaluate the policy, report what it would have done, refuse nothing.
+dryRun: true
+
+policy:
+  version: 1
+  default: log-only
+
+  operators:
+    example: ["https://agent.example"]
+
+  rules:
+    # A forged signature is hostile.
+    - id: forgeries-are-hostile
+      action: deny
+      when: { class: untrusted }
+
+    # Our own inability to check is not. Denying here would tie this site's
+    # availability to the proxy's egress.
+    - id: our-outage-is-not-their-fault
+      action: log-only
+      when: { class: unverifiable }
+
+    - id: docs-open-to-known-agents
+      action: allow
+      when: { status: verified, operator: example }
+      routes: ["GET /docs/**"]
