@@ -14,5 +14,8 @@
   "files": [
     "dist"
   ],
-  "sideEffects": false
+  "sideEffects": false,
+  "devDependencies": {
+    "@badge/testkit": "workspace:*"
+  }
 }
