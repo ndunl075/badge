@@ -1,0 +1,25 @@
+{
+  "name": "@badge/interop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Interoperability tests against the Cloudflare web-bot-auth reference implementation.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@badge/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@badge/adapters": "workspace:*",
+    "@badge/testkit": "workspace:*",
+    "web-bot-auth": "0.2.0"
+  }
+}

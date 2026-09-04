@@ -437,6 +437,7 @@ packages/
   middleware/  composes verifier + policy + sinks; decision records, metrics
   adapters/    node-http, express, fastify, hono
   testkit/     request signer, fake directory, fixed key vectors, clock
+  interop/     two-way checks against the Cloudflare reference implementation
   cli/         badge verify | sign | policy lint | directory serve
 spec-vectors/  cross-implementation fixtures (JSON)
 ```
@@ -447,6 +448,12 @@ they build a request, call `inspect`, apply the result. `core` never depends on 
 
 ## 16. Testing
 
+- **Interop against a second implementation.** Badge is checked in both directions against
+  Cloudflare's `web-bot-auth` package, written by the draft's own author: it verifies signatures the
+  reference produced, and the reference verifies signatures it produced. Without this every
+  signature Badge verified was one Badge had made, and a consistent misreading of the drafts would
+  pass every other test in the repository. It has already found two: `@target-uri` rejected as
+  insufficient, and unvalidated nonces.
 - **Spec vectors.** Signature bases and verdicts as JSON fixtures, shared with any future port and
   checked against the reference vectors published alongside the drafts.
 - **Property tests.** Structured-field parsing survives adversarial input; base reconstruction is
