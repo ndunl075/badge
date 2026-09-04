@@ -165,7 +165,7 @@ describe('directory resolver', () => {
       expect(http.calls).toHaveLength(2)
     })
 
-    it('treats no-store as immediately stale', async () => {
+    it('treats no-store as immediately stale when the floor allows it', async () => {
       const clock = fixedClock(NOW)
       const http = recorder(() => jwksResponse([key.publicJwk], { 'cache-control': 'no-store' }))
       const resolver = createDirectoryResolver({ http, clock, minTtlSec: 0 })
@@ -173,6 +173,44 @@ describe('directory resolver', () => {
       clock.advance(1)
       await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() })
       expect(http.calls.length).toBeGreaterThan(1)
+    })
+
+    /**
+     * The floor exists so an origin cannot make Badge fetch its directory on
+     * every request — an amplification hazard pointed at us by someone else's
+     * configuration. no-store therefore gets the shortest lifetime Badge will
+     * use, which is shorter than the default but not zero.
+     */
+    it('gives no-store the floor rather than the default lifetime', async () => {
+      const clock = fixedClock(NOW)
+      const http = recorder(() => jwksResponse([key.publicJwk], { 'cache-control': 'no-store' }))
+      const resolver = createDirectoryResolver({ http, clock, minTtlSec: 60, defaultTtlSec: 600 })
+      await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() })
+
+      clock.advance(59)
+      expect(
+        await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() }),
+      ).toMatchObject({ cache: 'hit' })
+
+      clock.advance(2)
+      expect(
+        await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() }),
+      ).toMatchObject({ cache: 'stale' })
+    })
+
+    it('gives a directory with no Cache-Control the default lifetime', async () => {
+      const clock = fixedClock(NOW)
+      const http = recorder(() => ({
+        status: 200,
+        headers: new Map([['content-type', 'application/json']]),
+        body: new TextEncoder().encode(JSON.stringify({ keys: [key.publicJwk] })),
+      }))
+      const resolver = createDirectoryResolver({ http, clock, minTtlSec: 60, defaultTtlSec: 600 })
+      await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() })
+      clock.advance(120)
+      expect(
+        await resolver.resolve({ origin: ORIGIN, keyid: key.keyid, now: clock.now() }),
+      ).toMatchObject({ cache: 'hit' })
     })
   })
 

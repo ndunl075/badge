@@ -221,6 +221,17 @@ export function createDirectoryResolver(options: DirectoryResolverOptions = {}):
     }
   }
 
+  /**
+   * The directory's `Cache-Control` is advisory, and always clamped into
+   * `[minTtlSec, maxTtlSec]`.
+   *
+   * The floor is the important half: without it an origin could send
+   * `max-age=0` or `no-store` and make Badge fetch its directory on every
+   * single request, which is an amplification hazard pointed at us by someone
+   * else's configuration. So `no-store` and `no-cache` are honoured as far as
+   * the floor allows — the shortest lifetime Badge will use, rather than the
+   * default — and no further.
+   */
   const clampTtl = (cacheControl: string | undefined): number => {
     const maxAge = parseMaxAge(cacheControl)
     if (maxAge === undefined) return defaultTtlSec
@@ -321,6 +332,10 @@ function mediaTypeAcceptable(
 
 function parseMaxAge(cacheControl: string | undefined): number | undefined {
   if (cacheControl === undefined) return undefined
+  // Zero rather than undefined: the caller clamps it to the floor, so a
+  // directory asking not to be cached gets the shortest lifetime Badge offers
+  // instead of the default one. See clampTtl for why it is not honoured
+  // literally.
   if (/(^|,)\s*(no-store|no-cache)\s*(,|$)/i.test(cacheControl)) return 0
   const match = /(?:^|,)\s*max-age\s*=\s*"?(\d+)"?/i.exec(cacheControl)
   if (match?.[1] === undefined) return undefined
