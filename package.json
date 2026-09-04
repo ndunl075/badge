@@ -17,7 +17,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "pnpm run format:check && pnpm run build && pnpm run test",
-    "vectors:generate": "pnpm run build && node scripts/generate-vectors.mjs"
+    "vectors:generate": "pnpm run build && node scripts/generate-vectors.mjs && cd sidecar && go run ./cmd/gen-vectors"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

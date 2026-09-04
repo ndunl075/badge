@@ -16,7 +16,7 @@ go run ./cmd/badge-proxy -config badge.example.yaml
 ```
 
 Start with `dryRun: true`. The proxy then evaluates the whole policy, records
-what it *would* have done in each decision record's `would_action`, and refuses
+what it _would_ have done in each decision record's `would_action`, and refuses
 nothing. Feed that log to `badge report` from the TypeScript CLI — the record
 format is the same — and it will tell you how much currently-served traffic
 enforcing would turn away.
