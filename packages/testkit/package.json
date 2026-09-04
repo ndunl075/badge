@@ -1,0 +1,21 @@
+{
+  "name": "@badge/testkit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Signing helpers, fake directories and fixtures for testing Badge integrations.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "@badge/core": "workspace:*"
+  }
+}
