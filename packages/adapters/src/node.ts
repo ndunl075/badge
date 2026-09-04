@@ -8,10 +8,14 @@ import {
   type SchemeSource,
 } from './authority.js'
 
-export interface NodeAdapterOptions {
+/** How to turn a Node request into a {@link NormalizedRequest}. */
+export interface NodeRequestOptions {
   /** See {@link AuthoritySource}. Defaults to `host`. */
   readonly authority?: AuthoritySource
   readonly scheme?: SchemeSource
+}
+
+export interface NodeAdapterOptions extends NodeRequestOptions {
   /** Status returned when the policy denies. */
   readonly denyStatus?: number
   readonly denyBody?: string
@@ -36,7 +40,7 @@ export interface NodeAdapterOptions {
  */
 export function fromNodeRequest(
   req: IncomingMessage,
-  options: NodeAdapterOptions = {},
+  options: NodeRequestOptions = {},
 ): NormalizedRequest {
   const raw = req.rawHeaders
   const pairs: [string, string][] = []
