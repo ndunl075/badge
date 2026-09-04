@@ -509,10 +509,12 @@ algorithms, the tag string, the well-known path, directory media type, window li
   the classes you mean. That is deliberate for now — negation is where declarative policy languages
   start growing an evaluator — but it makes the common "deny anything we could actually judge" rule
   wordier than it should be. A named class group (`evaluable`) is the likely fix.
-- **RFC 9421 component parameters.** `;sf`, `;bs`, `;key`, `;req`, and `;tr` are unimplemented in
-  v0 and fail as `unsupported_component`. `;sf` and `;bs` need a per-field type registry to
-  canonicalize correctly; `;req` and `;tr` apply only to response signatures. Web Bot Auth's minimum
-  covered set needs none of them.
+- **RFC 9421 component parameters.** `;sf`, `;key` and `;bs` are implemented. `;req` and `;tr`
+  remain unsupported: `;req` binds a response signature to its request and `;tr` covers trailers,
+  and neither has meaning when verifying a request. `;sf` needs a per-field structured type, and the
+  built-in map is deliberately short — canonicalizing under the wrong type yields a different base
+  and so a `signature_invalid` verdict, a well-behaved caller reported as hostile. An unlisted field
+  reports `unsupported_component`, and operators can extend the map.
 - **Multi-value `Signature-Agent`** and multiple concurrent `web-bot-auth` signatures: v0 selects the
   first and ignores the rest. Revisit if signers start chaining identities.
 - **Rate limiting keyed on verified identity** — the obvious next feature, and explicitly out of v0

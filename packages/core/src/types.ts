@@ -31,6 +31,16 @@ export interface NormalizedRequest {
    * base.
    */
   header(name: string): string | undefined
+  /**
+   * The individual values of a repeated field, in the order received.
+   *
+   * Needed only for the RFC 9421 `;bs` parameter, which encodes each field
+   * value as its own Byte Sequence and so cannot work from the comma-joined
+   * form — a value may legitimately contain a comma. Optional: an adapter that
+   * cannot produce it makes `;bs` report `unsupported_component`, which is
+   * honest, rather than guessing at a split.
+   */
+  headerValues?(name: string): readonly string[] | undefined
 }
 
 /** The subset of a request that policy is allowed to match on. */

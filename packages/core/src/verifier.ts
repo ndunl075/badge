@@ -1,4 +1,4 @@
-import { SignatureBaseError, buildSignatureBase } from './base.js'
+import { SignatureBaseError, buildSignatureBase, type StructuredFieldType } from './base.js'
 import { importEd25519PublicKey, isEd25519, keyValidityAt, type Jwk } from './crypto.js'
 import { verifyEd25519 } from './crypto.js'
 import type { CacheResult, KeyResolver, NonceStore } from './keys.js'
@@ -40,6 +40,11 @@ export interface VerifierOptions {
    * to match the reference exactly.
    */
   readonly minNonceBytes?: number
+  /**
+   * Additions to the structured field type map, so `;sf` and `;key` can
+   * canonicalize fields Badge does not know about.
+   */
+  readonly structuredFieldTypes?: Readonly<Record<string, StructuredFieldType>>
 }
 
 export interface Verifier {
@@ -172,7 +177,14 @@ export function createVerifier(options: VerifierOptions): Verifier {
         // Step 8: reconstruct the base.
         let base: string
         try {
-          base = buildSignatureBase({ request, components, signatureParamsSource: source })
+          base = buildSignatureBase({
+            request,
+            components,
+            signatureParamsSource: source,
+            ...(options.structuredFieldTypes === undefined
+              ? {}
+              : { structuredFieldTypes: options.structuredFieldTypes }),
+          })
         } catch (err) {
           if (err instanceof SignatureBaseError) return done(err.reason)
           throw err

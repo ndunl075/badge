@@ -1,6 +1,12 @@
 import type { ReasonCode } from './reasons.js'
-import { serializeItem } from './sfv/serialize.js'
-import type { Item } from './sfv/types.js'
+import { parseDictionary, parseItem, parseList } from './sfv/parse.js'
+import {
+  serializeDictionary,
+  serializeItem,
+  serializeList,
+  serializeMember,
+} from './sfv/serialize.js'
+import type { Item, Member } from './sfv/types.js'
 import type { NormalizedRequest } from './types.js'
 
 /**
@@ -23,13 +29,36 @@ export class SignatureBaseError extends Error {
 }
 
 /**
- * Component parameters defined by RFC 9421 that Badge does not implement in v0.
+ * Component parameters Badge still does not implement.
  *
- * `sf` and `bs` need a per-field type registry to canonicalize correctly, and
- * `req` and `tr` only apply to response signatures. Web Bot Auth's minimum
- * covered set (`@authority`, `signature-agent`) needs none of them.
+ * `req` binds a response signature to its request and `tr` covers trailers;
+ * neither has meaning when verifying a request, which is all Badge does.
  */
-const UNIMPLEMENTED_PARAMS = new Set(['sf', 'bs', 'key', 'req', 'tr'])
+const UNIMPLEMENTED_PARAMS = new Set(['req', 'tr'])
+
+/** How a structured field is typed, so `;sf` and `;key` can canonicalize it. */
+export type StructuredFieldType = 'dictionary' | 'list' | 'item'
+
+/**
+ * Field types Badge is confident about.
+ *
+ * Deliberately short. Canonicalizing a field under the wrong type produces a
+ * different base and therefore a `signature_invalid` verdict — a well-behaved
+ * caller reported as hostile. A field that is not listed reports
+ * `unsupported_component` instead, which is honest, and operators can extend
+ * the map for fields they know.
+ */
+export const DEFAULT_STRUCTURED_FIELDS: Readonly<Record<string, StructuredFieldType>> = {
+  accept: 'list',
+  'accept-encoding': 'list',
+  'accept-language': 'list',
+  'cache-control': 'dictionary',
+  'content-digest': 'dictionary',
+  'content-length': 'item',
+  'content-type': 'item',
+  signature: 'dictionary',
+  'signature-input': 'dictionary',
+}
 
 /** Derived components that only exist for responses. */
 const RESPONSE_ONLY = new Set(['@status'])
@@ -43,6 +72,8 @@ export interface SignatureBaseInput {
    * verbatim as the `@signature-params` value. See `DictionaryEntry.source`.
    */
   readonly signatureParamsSource: string
+  /** Overrides and additions to {@link DEFAULT_STRUCTURED_FIELDS}. */
+  readonly structuredFieldTypes?: Readonly<Record<string, StructuredFieldType>>
 }
 
 /**
@@ -91,15 +122,16 @@ export function buildSignatureBase(input: SignatureBaseInput): string {
     }
     seen.add(identifier)
 
-    lines.push(`${identifier}: ${componentValue(name, component, input.request)}`)
+    lines.push(`${identifier}: ${componentValue(name, component, input)}`)
   }
 
   lines.push(`"@signature-params": ${input.signatureParamsSource}`)
   return lines.join('\n')
 }
 
-function componentValue(name: string, component: Item, request: NormalizedRequest): string {
-  if (!name.startsWith('@')) return fieldValue(name, request)
+function componentValue(name: string, component: Item, input: SignatureBaseInput): string {
+  const request = input.request
+  if (!name.startsWith('@')) return fieldComponent(name, component, input)
   if (RESPONSE_ONLY.has(name)) {
     throw new SignatureBaseError(
       `${name} is only valid for response signatures`,
@@ -128,6 +160,29 @@ function componentValue(name: string, component: Item, request: NormalizedReques
   }
 }
 
+function fieldComponent(name: string, component: Item, input: SignatureBaseInput): string {
+  const bs = component.params.has('bs')
+  const sf = component.params.has('sf')
+  const keyParam = component.params.get('key')
+
+  if (keyParam !== undefined && keyParam.type !== 'string') {
+    throw new SignatureBaseError(';key must be a string', 'signature_input_malformed')
+  }
+  if (bs && (sf || keyParam !== undefined)) {
+    // RFC 9421 §2.1.3: ;bs is mutually exclusive with the parsing parameters.
+    throw new SignatureBaseError(
+      ';bs cannot be combined with ;sf or ;key',
+      'signature_input_malformed',
+    )
+  }
+
+  if (bs) return byteSequenceValue(name, input.request)
+  if (sf || keyParam !== undefined) {
+    return structuredValue(name, input, keyParam?.type === 'string' ? keyParam.value : undefined)
+  }
+  return fieldValue(name, input.request)
+}
+
 function fieldValue(name: string, request: NormalizedRequest): string {
   const value = request.header(name)
   if (value === undefined) {
@@ -139,6 +194,70 @@ function fieldValue(name: string, request: NormalizedRequest): string {
   // RFC 9421 §2.1: strip leading and trailing OWS and collapse obs-folds. The
   // adapter is responsible for comma-joining repeated fields in order.
   return value.replace(/\r?\n[ \t]+/g, ' ').trim()
+}
+
+/** RFC 9421 §2.1.3: each field value becomes its own Byte Sequence, combined as a List. */
+function byteSequenceValue(name: string, request: NormalizedRequest): string {
+  if (request.headerValues === undefined) {
+    throw new SignatureBaseError(
+      ';bs needs the individual field values, which this adapter does not expose',
+      'unsupported_component',
+    )
+  }
+  const values = request.headerValues(name)
+  if (values === undefined || values.length === 0) {
+    throw new SignatureBaseError(
+      `covered field is not present in the request: ${name}`,
+      'covered_component_missing',
+    )
+  }
+  return values
+    .map((value) => {
+      const normalized = value.replace(/\r?\n[ \t]+/g, ' ').trim()
+      return `:${Buffer.from(normalized, 'utf8').toString('base64')}:`
+    })
+    .join(', ')
+}
+
+/** RFC 9421 §2.1.1 (`;sf`) and §2.1.2 (`;key`): re-serialize the field strictly. */
+function structuredValue(name: string, input: SignatureBaseInput, key: string | undefined): string {
+  const raw = fieldValue(name, input.request)
+  const types = { ...DEFAULT_STRUCTURED_FIELDS, ...input.structuredFieldTypes }
+  // ;key only has meaning for a Dictionary, so it settles the type by itself.
+  const type = key !== undefined ? 'dictionary' : types[name]
+  if (type === undefined) {
+    throw new SignatureBaseError(
+      `no structured field type is known for "${name}", so ;sf cannot canonicalize it`,
+      'unsupported_component',
+    )
+  }
+
+  try {
+    if (type === 'dictionary') {
+      const dict = parseDictionary(raw)
+      if (key === undefined) {
+        const members = new Map<string, Member>()
+        for (const [memberKey, entry] of dict) members.set(memberKey, entry.value)
+        return serializeDictionary(members)
+      }
+      const entry = dict.get(key)
+      if (entry === undefined) {
+        throw new SignatureBaseError(
+          `covered dictionary key is not present in ${name}: ${key}`,
+          'covered_component_missing',
+        )
+      }
+      return serializeMember(entry.value)
+    }
+    if (type === 'list') return serializeList(parseList(raw))
+    return serializeItem(parseItem(raw))
+  } catch (err) {
+    if (err instanceof SignatureBaseError) throw err
+    throw new SignatureBaseError(
+      `covered field ${name} is not a valid structured field`,
+      'covered_component_missing',
+    )
+  }
 }
 
 /**

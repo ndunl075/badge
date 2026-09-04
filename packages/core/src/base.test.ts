@@ -19,6 +19,159 @@ const request = createRequest({
 
 const components = (...ids: string[]): Item[] => ids.map((id) => parseItem(id))
 
+describe('component parameters', () => {
+  const withHeaders = (headers: Record<string, string | string[]>) =>
+    createRequest({
+      method: 'GET',
+      scheme: 'https',
+      authority: 'example.com',
+      path: '/',
+      headers,
+    })
+
+  const line = (
+    id: string,
+    headers: Record<string, string | string[]>,
+    types?: Record<string, 'dictionary' | 'list' | 'item'>,
+  ): string => {
+    const base = buildSignatureBase({
+      request: withHeaders(headers),
+      components: [parseItem(id)],
+      signatureParamsSource: '()',
+      ...(types === undefined ? {} : { structuredFieldTypes: types }),
+    })
+    return base.split('\n')[0] as string
+  }
+
+  describe(';sf re-serializes strictly', () => {
+    it('normalizes a dictionary field', () => {
+      expect(
+        line('"content-digest";sf', { 'content-digest': 'sha-256=:YWJj:,   sha-512=:ZGVm:' }),
+      ).toBe('"content-digest";sf: sha-256=:YWJj:, sha-512=:ZGVm:')
+    })
+
+    it('normalizes a list field', () => {
+      expect(line('"accept";sf', { accept: 'text/html ,  application/json;q=0.9' })).toBe(
+        '"accept";sf: text/html, application/json;q=0.9',
+      )
+    })
+
+    it('normalizes an item field', () => {
+      expect(line('"content-length";sf', { 'content-length': '  42 ' })).toBe(
+        '"content-length";sf: 42',
+      )
+    })
+
+    // Canonicalizing under the wrong type would produce a different base and so
+    // a signature_invalid verdict: a well-behaved caller reported as hostile.
+    // Refusing is the only safe answer for a field we do not know.
+    it('refuses a field whose structured type it does not know', () => {
+      expect(() => line('"x-custom";sf', { 'x-custom': 'a=1' })).toThrow(SignatureBaseError)
+    })
+
+    it('accepts a type the operator supplied', () => {
+      expect(line('"x-custom";sf', { 'x-custom': 'a=1,  b=2' }, { 'x-custom': 'dictionary' })).toBe(
+        '"x-custom";sf: a=1, b=2',
+      )
+    })
+
+    it('reports a field that is not a valid structured field', () => {
+      try {
+        line('"content-digest";sf', { 'content-digest': 'not a dictionary!' })
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        expect((err as SignatureBaseError).reason).toBe('covered_component_missing')
+      }
+    })
+  })
+
+  describe(';key selects a dictionary member', () => {
+    const headers = { 'content-digest': 'sha-256=:YWJj:, sha-512=:ZGVm:' }
+
+    it('serializes the named member', () => {
+      expect(line('"content-digest";key="sha-512"', headers)).toBe(
+        '"content-digest";key="sha-512": :ZGVm:',
+      )
+    })
+
+    // ;key only has meaning for a Dictionary, so it settles the type itself and
+    // works on fields absent from the type map.
+    it('works without a type map entry', () => {
+      expect(line('"x-custom";key="b"', { 'x-custom': 'a=1, b=2' })).toBe('"x-custom";key="b": 2')
+    })
+
+    it('reports a member the field does not carry', () => {
+      try {
+        line('"content-digest";key="sha-1"', headers)
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        expect((err as SignatureBaseError).reason).toBe('covered_component_missing')
+      }
+    })
+
+    it('rejects a non-string key', () => {
+      try {
+        line('"content-digest";key=1', headers)
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        expect((err as SignatureBaseError).reason).toBe('signature_input_malformed')
+      }
+    })
+  })
+
+  describe(';bs encodes each value separately', () => {
+    // RFC 9421 §2.1.3 worked example.
+    it('matches the RFC example', () => {
+      expect(
+        line('"example-header";bs', { 'example-header': ['value, with, lots', 'of, commas'] }),
+      ).toBe('"example-header";bs: :dmFsdWUsIHdpdGgsIGxvdHM=:, :b2YsIGNvbW1hcw==:')
+    })
+
+    it('handles a single value', () => {
+      expect(line('"x-one";bs', { 'x-one': 'abc' })).toBe('"x-one";bs: :YWJj:')
+    })
+
+    it('trims each value before encoding', () => {
+      expect(line('"x-one";bs', { 'x-one': '  abc  ' })).toBe('"x-one";bs: :YWJj:')
+    })
+
+    it('reports an absent field', () => {
+      try {
+        line('"x-missing";bs', {})
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        expect((err as SignatureBaseError).reason).toBe('covered_component_missing')
+      }
+    })
+
+    // RFC 9421 §2.1.3 makes ;bs mutually exclusive with the parsing parameters.
+    it.each(['"x-one";bs;sf', '"x-one";bs;key="a"'])('rejects %s', (id) => {
+      try {
+        line(id, { 'x-one': 'a=1' })
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        expect((err as SignatureBaseError).reason).toBe('signature_input_malformed')
+      }
+    })
+
+    // Guessing at a comma split would be wrong: a field value may contain one.
+    it('refuses when the adapter cannot expose individual values', () => {
+      const request = withHeaders({ 'x-one': 'abc' })
+      const withoutValues = { ...request, headerValues: undefined }
+      try {
+        buildSignatureBase({
+          request: withoutValues,
+          components: [parseItem('"x-one";bs')],
+          signatureParamsSource: '()',
+        })
+        expect.unreachable('should have thrown')
+      } catch (err) {
+        expect((err as SignatureBaseError).reason).toBe('unsupported_component')
+      }
+    })
+  })
+})
+
 describe('buildSignatureBase', () => {
   it('emits one line per component and no trailing newline', () => {
     const base = buildSignatureBase({
@@ -155,7 +308,7 @@ describe('buildSignatureBase', () => {
 
     // Our gap: a real spec feature we have not implemented. Calling this
     // untrusted would libel a well-behaved caller.
-    it.each(['"content-digest";sf', '"x-multi";key="a"', '"@authority";req'])(
+    it.each(['"@authority";req', '"x-multi";tr', '"x-multi";sf'])(
       'reports %s as our own gap, not as hostile',
       (id) => {
         failsWith([id], 'unsupported_component')
