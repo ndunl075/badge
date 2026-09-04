@@ -143,6 +143,11 @@ to match.
 `spec-vectors/` holds cross-implementation fixtures. The signature-base vectors are written by hand
 rather than generated, so any port of Badge has an independent statement of what the bytes must be.
 
+Badge is also checked **in both directions** against Cloudflare's `web-bot-auth` package, written by
+the draft's own author: Badge verifies what the reference signs, and the reference verifies what
+Badge signs. That matters more than it sounds — without it, every signature Badge verified was one
+Badge had produced, and a consistent misreading of the drafts would pass every other test here.
+
 ## Architecture
 
 The full design — trust model, threat model, request path, data model, and the reasoning behind

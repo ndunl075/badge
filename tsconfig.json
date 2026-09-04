@@ -7,6 +7,7 @@
     { "path": "./packages/middleware" },
     { "path": "./packages/adapters" },
     { "path": "./packages/cli" },
+    { "path": "./packages/interop" },
     { "path": "./packages/testkit" }
   ]
 }

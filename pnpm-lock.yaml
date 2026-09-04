@@ -72,6 +72,22 @@ importers:
         specifier: workspace:*
         version: link:../testkit
 
+  packages/interop:
+    dependencies:
+      '@badge/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@badge/adapters':
+        specifier: workspace:*
+        version: link:../adapters
+      '@badge/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+      web-bot-auth:
+        specifier: 0.2.0
+        version: 0.2.0
+
   packages/middleware:
     dependencies:
       '@badge/core':
@@ -505,8 +521,14 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
+  http-message-sig@0.3.0:
+    resolution: {integrity: sha512-ossX5ZDDCRD+YtMzryp3gCg+5wqLFes1RVChEFmEE9Bzbd49Ts2IIIvFnTst/mYWx0ivrxrTTPsIIKKJ07s7+w==}
+
   js-tokens@9.0.1:
     resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
+
+  jsonwebkey-thumbprint@0.1.0:
+    resolution: {integrity: sha512-4m/gJEUQH8N2NfvZFjCL8/E+vlt0FlrmHoR4T93CEXQRkC64qwRi6oQri4/eqLVXqEqXYCss0+Q7pLx6vJBqzw==}
 
   loupe@3.2.1:
     resolution: {integrity: sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ==}
@@ -565,6 +587,10 @@ packages:
 
   strip-literal@3.1.0:
     resolution: {integrity: sha512-8r3mkIM/2+PpjHoOtiAW8Rg3jJLHaV7xPwG+YRGrv6FP0wwk/toTpATxWYOW0BKdWwl82VT2tFYi5DlROa0Mxg==}
+
+  structured-headers@2.0.3:
+    resolution: {integrity: sha512-4g5yxhlDMClRwCcfKfLeS7Z8yAVdOWGDADwm80Poh1iReU2KVKLGBlqwpHWJ2qovq0+ZIf1atAEO1eua2o9Rgg==}
+    engines: {node: '>=18', npm: '>=6'}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -668,6 +694,9 @@ packages:
         optional: true
       jsdom:
         optional: true
+
+  web-bot-auth@0.2.0:
+    resolution: {integrity: sha512-3DJ72ZhWK4a3yCHCClF6q32g03X37DJlpyASYeBroGTRj/qFkHNcPwkESc3FLigjW6NOWF6MR+Hat9AfOqqtAQ==}
 
   why-is-node-running@2.3.0:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
@@ -958,7 +987,13 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
+  http-message-sig@0.3.0:
+    dependencies:
+      structured-headers: 2.0.3
+
   js-tokens@9.0.1: {}
+
+  jsonwebkey-thumbprint@0.1.0: {}
 
   loupe@3.2.1: {}
 
@@ -1029,6 +1064,8 @@ snapshots:
   strip-literal@3.1.0:
     dependencies:
       js-tokens: 9.0.1
+
+  structured-headers@2.0.3: {}
 
   tinybench@2.9.0: {}
 
@@ -1123,6 +1160,12 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  web-bot-auth@0.2.0:
+    dependencies:
+      http-message-sig: 0.3.0
+      jsonwebkey-thumbprint: 0.1.0
+      structured-headers: 2.0.3
 
   why-is-node-running@2.3.0:
     dependencies:
