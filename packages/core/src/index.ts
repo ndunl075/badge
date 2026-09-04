@@ -35,6 +35,13 @@ export {
 } from './crypto.js'
 export { DEFAULT_PROFILE, PROFILES, WBA_2026_03, getProfile, type Profile } from './profile.js'
 export {
+  kvNonceStore,
+  memoryNonceStore,
+  type AtomicKeyValueStore,
+  type KvNonceStoreOptions,
+  type MemoryNonceStoreOptions,
+} from './nonce.js'
+export {
   staticKeyResolver,
   type CacheResult,
   type KeyRequest,

@@ -110,6 +110,25 @@ $ badge directory fetch https://agent.example
 shows the thumbprints an origin actually publishes, which is what the `keyid` in that log line has
 to match.
 
+## Replay protection
+
+Off by default, and the docs say so plainly: a captured signature can be replayed until it expires,
+and short `expires` values are the primary defence. Turning it on needs a store:
+
+```ts
+import { kvNonceStore, memoryNonceStore } from '@badge/core'
+
+// One replica:
+createVerifier({ keys, replay: memoryNonceStore() })
+
+// More than one — anything else is theatre, since replicas do not share a map:
+const kv = { setIfAbsent: async (k, ttl) => (await redis.set(k, '1', 'EX', ttl, 'NX')) === 'OK' }
+createVerifier({ keys, replay: kvNonceStore(kv) })
+```
+
+A store outage reports `nonce_store_unavailable` — `unverifiable`, never a replay. Denying
+legitimate traffic the moment Redis hiccups is the failure mode the class axis exists to prevent.
+
 ## Design commitments
 
 - **Installing Badge cannot break your site.** The default policy is `log-only`, and Badge never

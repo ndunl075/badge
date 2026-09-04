@@ -8,6 +8,7 @@ import {
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { Jwk } from './crypto.js'
 import { staticKeyResolver, type KeyResolution, type KeyResolver, type NonceStore } from './keys.js'
+import { memoryNonceStore } from './nonce.js'
 import { createRequest } from './request.js'
 import type { ReasonCode } from './reasons.js'
 import { createVerifier, type VerifierOptions } from './verifier.js'
@@ -433,6 +434,27 @@ describe('replay protection', () => {
       seen.add(nonce)
       return true
     },
+  })
+
+  it('works end to end with the shipped in-memory store', async () => {
+    const verifier = verifierWith(
+      { replay: memoryNonceStore({ clock: fixedClock(NOW) }) },
+      { [ORIGIN]: [key.publicJwk] },
+    )
+    const signed = await sign({ nonce: true })
+    expect((await verifier.verify(signed.request)).reason).toBe('ok')
+    expect((await verifier.verify(signed.request)).reason).toBe('replay_detected')
+  })
+
+  it('reports a saturated store as unverifiable rather than as a replay', async () => {
+    const verifier = verifierWith(
+      { replay: memoryNonceStore({ clock: fixedClock(NOW), maxEntries: 1 }) },
+      { [ORIGIN]: [key.publicJwk] },
+    )
+    expect((await verifier.verify((await sign({ nonce: true })).request)).reason).toBe('ok')
+    const verdict = await verifier.verify((await sign({ nonce: true })).request)
+    expect(verdict.reason).toBe('nonce_store_unavailable')
+    expect(verdict.class).toBe('unverifiable')
   })
 
   it('is off by default, so a captured signature replays until it expires', async () => {

@@ -272,7 +272,13 @@ be replayed until it expires; short `expires` values are the primary defence and
 signer's choice, not ours.
 
 When enabled, Badge requires a `nonce` and needs an atomic check-and-set `NonceStore` scoped to the
-enforcement boundary — a per-process store is theatre behind more than one replica. Retention is
+enforcement boundary — a per-process store is theatre behind more than one replica. Two ship:
+`memoryNonceStore` for a single replica, and `kvNonceStore` over a one-method
+`setIfAbsent(key, ttl)` interface that Redis satisfies with `SET key 1 NX EX ttl`. The atomicity is
+the store's job and Badge cannot verify it; a `setIfAbsent` assembled from a separate GET and SET has
+a race that is exactly the window this closes. When the in-memory store fills with live entries it
+throws rather than evicting, because evicting would let an attacker flood it to push out a target's
+nonce and then replay it. Retention is
 bounded by `maxWindowSec`, and store failure is `unverifiable`, never `untrusted`.
 
 The nonce must also be long enough to be worth storing. A short one is not merely weak: an attacker
