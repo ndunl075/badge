@@ -52,6 +52,8 @@ export const REASONS = {
   validity_window_too_long: { status: 'claimed', class: 'malformed' },
   /** Replay protection is on and the signature carried no `nonce`. */
   nonce_missing: { status: 'claimed', class: 'malformed' },
+  /** The caller signed a field or query parameter it did not send. */
+  covered_component_missing: { status: 'claimed', class: 'malformed' },
 
   // -- expired: a real claim, outside its window ----------------------------
   created_in_future: { status: 'claimed', class: 'expired' },
@@ -80,6 +82,14 @@ export const REASONS = {
   directory_too_large: { status: 'claimed', class: 'unverifiable' },
   /** The nonce store was unreachable, so replay could not be ruled out. */
   nonce_store_unavailable: { status: 'claimed', class: 'unverifiable' },
+  /**
+   * The caller used a legitimate RFC 9421 feature Badge has not implemented.
+   *
+   * This is *our* gap, so it is unverifiable rather than untrusted. Guessing at
+   * a base we cannot build would surface as `signature_invalid` and libel a
+   * well-behaved caller.
+   */
+  unsupported_component: { status: 'claimed', class: 'unverifiable' },
   internal_error: { status: 'claimed', class: 'unverifiable' },
 } as const satisfies Record<string, { status: Status; class: FailureClass }>
 
