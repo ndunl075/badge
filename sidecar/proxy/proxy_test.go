@@ -72,7 +72,7 @@ func newHarness(t *testing.T, source string, tweak func(*Handler)) *harness {
 	}
 
 	verifier := wba.NewVerifier(wba.StaticKeys{testOrigin: {jwk}})
-	verifier.Clock = &wba.FixedClock{Seconds: testNow}
+	verifier.Clock = wba.NewFixedClock(testNow)
 
 	sink := &collector{}
 	handler := &Handler{

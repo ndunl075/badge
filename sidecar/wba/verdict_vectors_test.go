@@ -59,7 +59,7 @@ func loadVerdictVectors(t *testing.T) verdictDoc {
 
 func verifierFor(doc verdictDoc, keys []JWK) *Verifier {
 	v := NewVerifier(StaticKeys{doc.SignatureAgentOrigin: keys})
-	v.Clock = &FixedClock{Seconds: doc.Now}
+	v.Clock = NewFixedClock(doc.Now)
 	return v
 }
 

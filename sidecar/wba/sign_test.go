@@ -49,7 +49,7 @@ func TestSignAndVerifyRoundTrip(t *testing.T) {
 	})
 
 	verifier := NewVerifier(StaticKeys{origin: {jwk}})
-	verifier.Clock = &FixedClock{Seconds: now}
+	verifier.Clock = NewFixedClock(now)
 
 	got := verifier.Verify(context.Background(), req)
 	if got.Reason != ReasonOK {
@@ -80,7 +80,7 @@ func TestVerifyRejectsTampering(t *testing.T) {
 	}
 
 	verifier := NewVerifier(StaticKeys{origin: {jwk}})
-	verifier.Clock = &FixedClock{Seconds: now}
+	verifier.Clock = NewFixedClock(now)
 	if got := verifier.Verify(context.Background(), moved); got.Reason != ReasonSignatureInvalid {
 		t.Errorf("reason = %q, want signature_invalid", got.Reason)
 	}
@@ -97,7 +97,7 @@ func TestVerifyTargetURI(t *testing.T) {
 	})
 
 	verifier := NewVerifier(StaticKeys{origin: {jwk}})
-	verifier.Clock = &FixedClock{Seconds: now}
+	verifier.Clock = NewFixedClock(now)
 	// @target-uri contains the authority and pins more besides, so it satisfies
 	// the requirement rather than failing it.
 	if got := verifier.Verify(context.Background(), req); got.Reason != ReasonOK {
@@ -117,7 +117,7 @@ func TestReplayProtection(t *testing.T) {
 
 	seen := map[string]bool{}
 	verifier := NewVerifier(StaticKeys{origin: {jwk}})
-	verifier.Clock = &FixedClock{Seconds: now}
+	verifier.Clock = NewFixedClock(now)
 	verifier.Replay = nonceStoreFunc(func(_ context.Context, nonce string, _ int64) (bool, error) {
 		if seen[nonce] {
 			return false, nil

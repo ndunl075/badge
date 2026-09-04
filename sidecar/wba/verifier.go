@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/ndunl075/badge/sidecar/sfv"
@@ -40,9 +41,27 @@ func (systemClock) Now() int64 { return time.Now().Unix() }
 var SystemClock Clock = systemClock{}
 
 // FixedClock is a clock a test can move.
-type FixedClock struct{ Seconds int64 }
+//
+// Safe for concurrent use, which is not fussiness: the directory resolver reads
+// the clock from background revalidation goroutines, so any test that moves
+// time while a refresh is in flight races on it. The race detector found
+// exactly that.
+type FixedClock struct{ seconds atomic.Int64 }
 
-func (c *FixedClock) Now() int64 { return c.Seconds }
+// NewFixedClock starts a movable clock at the given Unix second.
+func NewFixedClock(seconds int64) *FixedClock {
+	c := &FixedClock{}
+	c.seconds.Store(seconds)
+	return c
+}
+
+func (c *FixedClock) Now() int64 { return c.seconds.Load() }
+
+// Set moves the clock to an absolute time.
+func (c *FixedClock) Set(seconds int64) { c.seconds.Store(seconds) }
+
+// Advance moves the clock forward.
+func (c *FixedClock) Advance(seconds int64) { c.seconds.Add(seconds) }
 
 // KeyRequest asks a resolver for one key.
 type KeyRequest struct {
