@@ -11,9 +11,10 @@ same check Cloudflare and Akamai run at the edge. Badge runs it at your origin, 
 web actually lives.
 
 > [!WARNING]
-> Pre-v0. Nothing is published to npm yet and the API will change. The specification Badge
-> implements is a set of individual IETF drafts that are **not** working-group adopted and are
-> still moving — the directory draft has already been renamed once.
+> Pre-1.0 and the API will change. The specification Badge implements is a set of individual IETF
+> drafts that are **not** working-group adopted and are still moving — the directory draft has
+> already been renamed once. Badge is checked against Cloudflare's reference implementation in both
+> directions, which is the closest thing to a compatibility guarantee available today.
 
 ## See it work
 
@@ -206,7 +207,7 @@ pnpm run check              # format check + build + test
 pnpm run vectors:generate   # regenerate the signed spec vectors
 ```
 
-Requires Node 20+.
+Requires Node 20+. Release process: **[RELEASING.md](./RELEASING.md)**.
 
 ## License
 
